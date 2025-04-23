@@ -57,22 +57,32 @@ class App:
             self.print_split(order=1)
             for rss_name, rss_combine in self.rss.items():
                 self.print_split(order=2)
-                if not rss_combine.enable:
-                    self.log(f"{rss_name} is diable, skipping...")
+
+                if not getattr(rss_combine, "enable", True):
+                    self.log(f"❌ {rss_name} is disabled, skipping...")
                     self.print_split(order=2)
                     continue
-                self.log(f"Start handling RSS - {rss_name} (since {rss_combine.last})")
-                new_rss_items = rss_combine.rss.get_items_since(rss_combine.last)
-                self.log(f"Found {len(new_rss_items)} new item(s)")
-                self.print_split(order=2)
-                if new_rss_items:
-                    self.print_split(order=3)
-                    self.log("Start to Send Message")
-                    self.rss[rss_name].last = get_newest_time(new_rss_items)
-                    msgs = rss_combine.rss.summarize(new_rss_items)
-                    for notify in rss_combine.notifies:
-                        notify.send(msgs=msgs)
-                    self.print_split(order=3)
+
+                self.log(f"📡 Start handling RSS - {rss_name} (since {rss_combine.last})")
+
+                try:
+                    rss_combine.rss.fetch()
+                    new_rss_items = rss_combine.rss.get_items_since(rss_combine.last)
+                    self.log(f"📎 Found {len(new_rss_items)} new item(s)")
+                    self.print_split(order=2)
+
+                    if new_rss_items:
+                        self.print_split(order=3)
+                        self.log("📤 Start to send messages...")
+                        self.rss[rss_name].last = get_newest_time(new_rss_items)
+                        msgs = rss_combine.rss.summarize(new_rss_items)
+                        for notify in rss_combine.notifies:
+                            notify.send(msgs=msgs)
+                        self.print_split(order=3)
+
+                except Exception as e:
+                    self.log(f"❗ Error while handling {rss_name}: {e}", level="ERROR")
+
             self.print_split(order=1)
             sleep(60)
 
