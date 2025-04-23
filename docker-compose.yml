@@ -1,0 +1,6 @@
+services:
+  rss-bot:
+    image: registry.kyzdt.com/tools/rss-bot:latest
+    container_name: rss-bot
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
