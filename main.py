@@ -2,7 +2,7 @@ from src.Config import Config
 from src.Rss import Rss, get_newest_time
 from src.Ai import AiAgent
 from src.Notify import NotifyConfig
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from dataclasses import dataclass, field
 from time import sleep
 import argparse
@@ -25,9 +25,24 @@ class App:
         self._init_rss()
 
     def log(self, msg: str, level: str = 'INFO'):
-        if self.verbose:
-            now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S %Z")
-            print(f"[{now}] [{level}] {msg}")
+        if not self.verbose:
+            return
+
+        now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S %Z")
+
+        # ANSI 颜色码映射
+        color_map = {
+            'INFO': '\033[34m',     # 蓝色
+            'WARNING': '\033[33m',  # 黄色
+            'ERROR': '\033[31m',    # 红色
+            'DEBUG': '\033[90m',    # 灰色
+            'SUCCESS': '\033[32m'   # 绿色（自定义等级）
+        }
+
+        color = color_map.get(level.upper(), '')
+        reset = '\033[0m'
+
+        print(f"{color}[{now}] [{level.upper()}] {msg}{reset}")
 
     def print_split(self, order: int = 0):
         symbol = "="
@@ -84,6 +99,8 @@ class App:
                     self.log(f"❗ Error while handling {rss_name}: {e}", level="ERROR")
 
             self.print_split(order=1)
+            next_check = datetime.now(timezone.utc) + timedelta(seconds=interval)
+            print(f"🕒 Sleep for {interval} seconds... Next check at {next_check.strftime('%Y-%m-%d %H:%M:%S %Z')}")
             sleep(interval)
 
 
