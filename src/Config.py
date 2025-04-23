@@ -14,6 +14,7 @@ class Config(_Config):
     ai: AiConfig
     rss: dict[str, RssConfig] = field(default_factory=dict)
     rss_notify: dict[str, list[str]] = field(default_factory=dict)
+    rss_enable: dict[str, list[bool]] = field(default_factory=dict)
     notify: dict[str, NotifyConfig] = field(default=dict)
 
     @classmethod
@@ -24,12 +25,15 @@ class Config(_Config):
             raise Exception("")
         rss_dict: dict = {}
         rss_notify: dict = {}
+        rss_enable: dict = {}
         if 'rss' in dict_data:
             for rss in dict_data['rss']:
                 notify = rss.pop('notify')
+                enable = rss.pop('enable')
                 rss_config: RssConfig = RssConfig.load_from_dict(rss)
                 rss_dict[rss_config.name] = rss_config
                 rss_notify[rss_config.name] = notify
+                rss_enable[rss_config.name] = enable
         else:
             raise Exception("")
         notify_dict: dict = {}
@@ -44,6 +48,7 @@ class Config(_Config):
             ai=ai_config,
             rss=rss_dict,
             rss_notify=rss_notify,
+            rss_enable=rss_enable,
             notify=notify_dict
         )
 

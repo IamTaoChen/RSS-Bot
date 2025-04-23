@@ -11,6 +11,7 @@ import argparse
 @dataclass
 class RssMain:
     rss: Rss
+    enable: bool = True
     last: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     notifies: list[NotifyConfig] = field(default_factory=list)
 
@@ -45,7 +46,8 @@ class App:
             rss = Rss(config=rss_config, ai_agent=ai_agent)
             now = datetime.now(timezone.utc)
             notifies = self._config.get_notfies_by_names(self._config.rss_notify[rss_name])
-            rss_main = RssMain(rss=rss, last=now, notifies=notifies)
+            enable = self._config.rss_enable[rss_name]
+            rss_main = RssMain(rss=rss, last=now, notifies=notifies, enable=enable)
             self.rss[rss_name] = rss_main
             self.log(f"Initialized RSS feed: {rss_name}")
 
@@ -55,6 +57,10 @@ class App:
             self.print_split(order=1)
             for rss_name, rss_combine in self.rss.items():
                 self.print_split(order=2)
+                if not rss_combine.enable:
+                    self.log(f"{rss_name} is diable, skipping...")
+                    self.print_split(order=2)
+                    continue
                 self.log(f"Start handling RSS - {rss_name} (since {rss_combine.last})")
                 new_rss_items = rss_combine.rss.get_items_since(rss_combine.last)
                 self.log(f"Found {len(new_rss_items)} new item(s)")
