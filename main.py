@@ -51,7 +51,7 @@ class App:
             self.rss[rss_name] = rss_main
             self.log(f"Initialized RSS feed: {rss_name}")
 
-    def run(self):
+    def run(self, interval: int = 60):
         self.print_split(order=0)
         while True:
             self.print_split(order=1)
@@ -66,7 +66,7 @@ class App:
                 self.log(f"📡 Start handling RSS - {rss_name} (since {rss_combine.last})")
 
                 try:
-                    rss_combine.rss.fetch()
+                    all_items = rss_combine.rss.fetch()
                     new_rss_items = rss_combine.rss.get_items_since(rss_combine.last)
                     self.log(f"📎 Found {len(new_rss_items)} new item(s)")
                     self.print_split(order=2)
@@ -84,12 +84,13 @@ class App:
                     self.log(f"❗ Error while handling {rss_name}: {e}", level="ERROR")
 
             self.print_split(order=1)
-            sleep(60)
+            sleep(interval)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--config", required=False, help="Path to config YAML file", default='./config.yaml')
+    parser.add_argument("-i", "--interval", type=int, required=False, help="Polling interval in seconds", default=60)
     args = parser.parse_args()
     app = App(cfg_file=args.config)
-    app.run()
+    app.run(interval=args.interval)

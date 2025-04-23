@@ -12,4 +12,6 @@ COPY config_example.yaml ./config.yaml
 
 ENV PYTHONUNBUFFERED=1
 
-CMD ["python", "main.py", "-c", "config.yaml"]
+ENTRYPOINT [ "python", "main.py" ]
+
+CMD ["-c", "config.yaml","-i","60"]
