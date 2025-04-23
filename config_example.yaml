@@ -1,3 +1,5 @@
+timezone: Asia/Shanghai
+
 ai:
   ai_type: openai
   api_key: sk-proj-xxxx

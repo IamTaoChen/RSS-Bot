@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import annotations
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from datetime import tzinfo, datetime
 from .Utils import _Config, Msg
 from abc import ABC, abstractmethod
 import requests
@@ -15,17 +16,21 @@ class NotifyConfig(_Config, ABC):
     token: str
 
     @abstractmethod
-    def send(self, msgs: Msg) -> bool:
+    def send(self, msgs: Msg | list[Msg], use_html: bool = True, local_tz: tzinfo = None) -> bool:
         """
         Send msg
         """
         pass
 
-    def msg2str(self, msg: Msg, html: bool = False) -> str:
+    def msg2str(self, msg: Msg, html: bool = False, local_tz: tzinfo = None) -> str:
         """
         Format
         """
         return str(msg)
+
+    def format_dt(self, dt: datetime, tz: tzinfo = None) -> str:
+        dt = dt.astimezone(tz) if tz else dt
+        return dt.strftime('%Y-%m-%d %H:%M:%S %Z')
 
 
 @dataclass
@@ -33,7 +38,7 @@ class MatrixConfig(NotifyConfig):
     homeserver: str
     room_id: str
 
-    def send(self, msgs: Msg | list[Msg], use_html: bool = True) -> bool:
+    def send(self, msgs: Msg | list[Msg], use_html: bool = True, local_tz: tzinfo = None) -> bool:
         if isinstance(msgs, Msg):
             msgs = [msgs]
         elif not isinstance(msgs, list):
@@ -42,7 +47,7 @@ class MatrixConfig(NotifyConfig):
         session = requests.Session()
 
         for msg in msgs:
-            body = self.msg2str(msg, html=False)
+            body = self.msg2str(msg, html=False, local_tz=local_tz)
             payload = {
                 "msgtype": "m.text",
                 "body": body
@@ -57,7 +62,7 @@ class MatrixConfig(NotifyConfig):
             headers = {"Authorization": f"Bearer {self.token}"}
             session.put(url, headers=headers, json=payload)
 
-    def msg2str(self, msg: Msg, html: bool = False) -> str:
+    def msg2str(self, msg: Msg, html: bool = False, local_tz: tzinfo = None) -> str:
         lines = []
 
         def fmt(k: str, v: str) -> str:
@@ -76,8 +81,11 @@ class MatrixConfig(NotifyConfig):
             lines.append(fmt("Link", link))
 
         if msg.pub_date:
-            date_str = msg.pub_date.strftime('%Y-%m-%d %H:%M:%S %Z')
+            date_str = self.format_dt(dt=msg.pub_date, tz=None)
             lines.append(fmt("PubDate", date_str))
+            if local_tz:
+                local_str = self.format_dt(dt=msg.pub_date, tz=local_tz)
+                lines.append(fmt("LocalTime", local_str))
 
         if msg.images:
             if html:

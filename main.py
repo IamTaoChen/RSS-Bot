@@ -53,6 +53,8 @@ class App:
             symbol = "+"
         elif order == 3:
             symbol = "~"
+        elif order == 4:
+            symbol = 'x'
         print(symbol * size)
 
     def _init_rss(self) -> None:
@@ -77,26 +79,24 @@ class App:
                     self.log(f"❌ {rss_name} is disabled, skipping...")
                     self.print_split(order=2)
                     continue
-
                 self.log(f"📡 Start handling RSS - {rss_name} (since {rss_combine.last})")
 
                 try:
                     all_items = rss_combine.rss.fetch()
                     new_rss_items = rss_combine.rss.get_items_since(rss_combine.last)
                     self.log(f"📎 Found {len(new_rss_items)} new item(s)")
-                    self.print_split(order=2)
 
                     if new_rss_items:
-                        self.print_split(order=3)
-                        self.log("📤 Start to send messages...")
+                        self.log("🧠 Summarizing with AI agent...")
                         self.rss[rss_name].last = get_newest_time(new_rss_items)
                         msgs = rss_combine.rss.summarize(new_rss_items)
+                        self.log("📤 Start to send messages...")
                         for notify in rss_combine.notifies:
-                            notify.send(msgs=msgs)
-                        self.print_split(order=3)
+                            notify.send(msgs=msgs, local_tz=self._config.timezone)
 
                 except Exception as e:
                     self.log(f"❗ Error while handling {rss_name}: {e}", level="ERROR")
+                self.print_split(order=2)
 
             self.print_split(order=1)
             next_check = datetime.now(timezone.utc) + timedelta(seconds=interval)
