@@ -1,0 +1,20 @@
+ai:
+  ai_type: openai
+  api_key: XXXX
+  model: "gpt-3.5-turbo"
+  temperature: 0.7
+
+rss:
+  - name:
+    url: 
+    description: ""
+    notify: 
+      - "matrix-1"
+
+notify:
+  - name: matrix-1
+    type: matrix
+    username:
+    token:
+    homeserver:
+    room_id: 

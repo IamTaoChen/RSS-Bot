@@ -1,0 +1,5 @@
+bs4
+feedparser
+openai
+requests
+PyYAML
