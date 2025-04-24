@@ -104,7 +104,7 @@ class App:
                     if new_rss_items:
                         self.log("🧠 Summarizing with AI agent...")
                         self.rss[rss_name].last = get_newest_time(new_rss_items)
-                        msgs = rss_combine.rss.summarize(new_rss_items)
+                        msgs = rss_combine.rss.summarize(items=new_rss_items, verbose=True)
                         rss_combine.msgs_buffer.extend(msgs)
 
                     if rss_combine.error_count > 0:

@@ -203,7 +203,7 @@ class Rss():
         """
         return contents
 
-    def summarize(self, items: list[RssItem] = None) -> list[Msg]:
+    def summarize(self, items: list[RssItem] = None, verbose: bool = False) -> list[Msg]:
         """
         Summarize the RSS items using the AI agent.
         :param items: list of RssItem objects
@@ -216,6 +216,8 @@ class Rss():
         msgs: list[Msg] = []
         for item in items:
             prompt_str = self.prompt(item=item, translate_to=self.translate_to)
+            if verbose:
+                print(f"Summarizing item: {item.title}")
             reply = self._ai_agent.act(prompt=prompt_str)
             format_reply = self.format_output(reply)
             msg = Msg(title=item.title,
