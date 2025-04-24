@@ -79,11 +79,14 @@ class MatrixConfig(NotifyConfig):
         lines = []
 
         def fmt(k: str, v: str) -> str:
-            return f"<b>{k}:</b> {v}<br>" if html else f"{k}: {v}"
+            return f"<b>{k}:</b> {v}<br><br>" if html else f"{k}: {v}\n"
 
         # Title
         title = ' '.join(msg.title.strip().split())
-        lines.append(f"<h4>{title}</h4>" if html else f"Title: {title}")
+        if html:
+            lines.append(f"<h1 style='text-align:center;'>{title}</h1><br><br>")
+        else:
+            lines.append(f"Title: {title}\n")
 
         # Description
         if msg.description:
@@ -94,40 +97,45 @@ class MatrixConfig(NotifyConfig):
             link = f'<a href="{msg.link}">{msg.link}</a>' if html else msg.link
             lines.append(fmt("Link", link))
 
-        # Pub date
+        # PubDate
         if msg.pub_date:
             lines.append(fmt("PubDate", self.format_dt(msg.pub_date)))
             if local_tz:
                 lines.append(fmt("LocalTime", self.format_dt(msg.pub_date, local_tz)))
 
-        # Images
-        if msg.images:
-            if html:
-                for img in msg.images:
-                    lines.append(f'<img src="{img}" style="max-width:100%;"><br>')
-            else:
-                lines.append(fmt("Images", ', '.join(msg.images)))
-
         # Authors
         if msg.authors:
             lines.append(fmt("Authors", ', '.join(msg.authors)))
 
+        # Images
+        if msg.images:
+            if html:
+                for img in msg.images:
+                    lines.append(f'<img src="{img}" style="max-width:100%; margin-top:8px;"><br>')
+            else:
+                lines.append(fmt("Images", ', '.join(msg.images)))
+
         # Contents
         if msg.contents:
-            lines.append("<hr><b>CONTENTS</b><br>" if html else "===== CONTENTS =====")
+            lines.append("<h3>📦 Contents</h3><br>" if html else "===== CONTENTS =====\n")
             if isinstance(msg.contents, dict):
                 for k, v in msg.contents.items():
                     if html:
-                        lines.append(f"<b>{k}</b><br><pre>{v.strip()}</pre><br>")
+                        lines.append(f"<b>{k}</b><br><pre>{v.strip()}</pre><br><br>")
                     else:
-                        lines.append(f"{k}:\n{v.strip()}\n")
+                        lines.append(f"{k}:\n{v.strip()}\n\n")
             elif isinstance(msg.contents, str):
                 content_text = msg.contents.strip()
                 if html:
                     for line in content_text.splitlines():
                         lines.append(line.strip() + "<br>")
+                    lines.append("<br>")
                 else:
-                    lines.append(content_text)
+                    lines.append(content_text + "\n")
 
-        lines.append("<hr>" if html else "=" * 40)
+        lines.append(
+            "<div style='color:#888; font-size:small;'>— End —</div><br><br>"
+            if html else "=" * 40 + "\n"
+        )
+
         return ''.join(lines) if html else '\n'.join(lines)

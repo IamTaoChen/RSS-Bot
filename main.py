@@ -93,8 +93,8 @@ class App:
                     self.log(f"❌ {rss_name} is disabled, skipping...")
                     self.print_split(order=2)
                     continue
-
-                self.log(f"📡 Start handling RSS - {rss_name} (since {rss_combine.last})")
+                date_str = NotifyConfig.format_dt(dt=rss_combine.last, tz=self._config.timezone)
+                self.log(f"📡 Start handling RSS - {rss_name} (since {date_str})")
 
                 try:
                     all_items = rss_combine.rss.fetch()
