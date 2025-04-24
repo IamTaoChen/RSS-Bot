@@ -7,6 +7,8 @@ from .Utils import _Config, Msg
 from .Rss import Rss, RssItem, RssConfig
 from .Ai import AiAgent
 import re
+import requests
+from bs4 import BeautifulSoup
 
 
 def extract_html_p(html: str) -> str:
@@ -17,6 +19,28 @@ def extract_html_p(html: str) -> str:
     """
     match = re.search(r"<p>(.*?)</p>", html, re.DOTALL)
     return match.group(1) if match else html
+
+
+def extract_nitter_post(url: str) -> str | None:
+    try:
+        headers = {
+            "User-Agent": "Mozilla/5.0"
+        }
+        resp = requests.get(url, headers=headers, timeout=10)
+        resp.raise_for_status()
+
+        soup = BeautifulSoup(resp.text, "html.parser")
+
+        # 主推文内容在 `.main-tweet .tweet-content` 中
+        tweet_div = soup.select_one(".main-tweet .tweet-content")
+        if tweet_div:
+            content = tweet_div.get_text(strip=True)
+            return content
+        else:
+            return None
+
+    except Exception as e:
+        return None
 
 
 @dataclass
@@ -65,30 +89,14 @@ class Retweet:
             description=description_parts
         )
         try:
-            nitter_rss_url = nitter_url + "/"+author+"/rss"
-            rss_items = Rss.fetch_from_url(nitter_rss_url)
-            for item in rss_items:
-                if item.link == tweet_link:
-                    description = item.description
-                    break
-            retweet.description = extract_html_p(description)
-            return True, retweet
+            url = retweet.id.replace(nitter_public_url, nitter_url)
+            contents = extract_nitter_post(url)
+            if contents:
+                retweet.description = contents
+                return True, retweet
+            return False, None
         except:
             return False, None
-
-
-def test(item: RssItem) -> None | Retweet:
-    """
-    Test if the item is valid.
-    :param item: The item to test.
-    :return: True if the item is valid, False otherwise.
-    """
-    pattern = re.compile(r"<p>(.*?)</p>", re.DOTALL)
-    matches = pattern.findall(item.description)
-    if not matches:
-        return None
-    for match in matches:
-        print(match)
 
 
 class RssNitter(Rss):
@@ -154,7 +162,7 @@ class RssNitter(Rss):
         is_retweet, retweet = Retweet.is_retweet(item=item, nitter_public_url=self.public_url, nitter_url=self.url)
         _str = self.rss_item_flatten(item=item)
         if is_retweet:
-            print(f"Retweet found: {retweet}")
+            # print(f"Retweet found: {retweet}")
             _str += (
                 "\n---\n"
                 "Retweet from: \n"
@@ -163,6 +171,6 @@ class RssNitter(Rss):
                 f"Link: {retweet.id}\n"
                 "---"
             )
-        else:
-            print("No retweet found")
+        # else:
+        #     print("No retweet found")
         return _str
