@@ -17,21 +17,24 @@ class NotifyConfig(_Config, ABC):
     username: str
     token: str
 
-    def send(self, msgs: Msg | list[Msg], use_html: bool = None, local_tz: tzinfo = None) -> list[Msg]:
+    def send(self, msgs: Msg | list[Msg], use_html: bool = True, local_tz: tzinfo = None) -> list[Msg]:
         """
-        Send messages. Remove successfully sent messages from list.
+        Send messages. Return the list of messages that failed to send.
         """
         if isinstance(msgs, Msg):
             msgs = [msgs]
         elif not isinstance(msgs, list):
-            raise Exception("The msgs should be Msg or list[Msg]")
+            raise TypeError("The msgs should be Msg or list[Msg]")
 
         failed_msgs = []
         for msg in msgs:
-            if not self.send_core(msg=msg, use_html=use_html, local_tz=local_tz):
+            try:
+                if not self.send_core(msg=msg, use_html=use_html, local_tz=local_tz):
+                    failed_msgs.append(msg)
+            except Exception as e:
+                print(f"❌ Exception while sending message '{msg.title}': {e}")
                 failed_msgs.append(msg)
 
-        # Keep only failed messages
         return failed_msgs
 
     @abstractmethod
