@@ -129,4 +129,5 @@ class MatrixConfig(NotifyConfig):
                 else:
                     lines.append(content_text)
 
+        lines.append("<hr>" if html else "=" * 40)
         return ''.join(lines) if html else '\n'.join(lines)
