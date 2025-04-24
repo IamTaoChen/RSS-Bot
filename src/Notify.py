@@ -41,7 +41,8 @@ class NotifyConfig(_Config, ABC):
     def msg2str(self, msg: Msg, html: bool = False, local_tz: tzinfo = None) -> str:
         return str(msg)
 
-    def format_dt(self, dt: datetime, tz: tzinfo = None) -> str:
+    @classmethod
+    def format_dt(cls, dt: datetime, tz: tzinfo = None) -> str:
         dt = dt.astimezone(tz) if tz else dt
         return dt.strftime('%Y-%m-%d %H:%M:%S %Z')
 

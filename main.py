@@ -124,7 +124,8 @@ class App:
 
             self.print_split(order=1)
             next_check = datetime.now(timezone.utc) + timedelta(seconds=interval)
-            print(f"🕒 Sleep for {interval} seconds... Next check at {next_check.strftime('%Y-%m-%d %H:%M:%S %Z')}")
+            date_str = NotifyConfig.format_dt(dt=next_check, tz=self._config.timezone)
+            print(f"🕒 Sleep for {interval} seconds... Next check at {date_str}")
             sleep(interval)
 
     def send(self) -> None:
