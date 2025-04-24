@@ -66,7 +66,7 @@ class MatrixConfig(NotifyConfig):
 
         if use_html:
             payload["format"] = "org.matrix.custom.html"
-            payload["formatted_body"] = self.msg2str(msg, html=True)
+            payload["formatted_body"] = self.msg2str(msg, html=True, local_tz=local_tz)
 
         txn_id = str(int(time.time() * 1000))
         url = f"{self.homeserver}/_matrix/client/r0/rooms/{self.room_id}/send/m.room.message/{txn_id}"
