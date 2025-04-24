@@ -79,9 +79,17 @@ class Rss():
 
     def get_items_since(self, since: datetime) -> list[RssItem]:
         """
+        Return all RssItems published after the given datetime.
 
+        Handles both timezone-aware and naive datetimes by converting naive `since` to UTC.
+        Ignores items without a valid pub_date.
         """
-        return [item for item in self.items if item.pub_date > since]
+        # Ensure `since` is timezone-aware (assume UTC if not)
+        if since.tzinfo is None:
+            since = since.replace(tzinfo=timezone.utc)
+
+        # Filter items with pub_date > since
+        return [item for item in self.items if item.pub_date and item.pub_date > since]
 
     def fetch(self) -> list[RssItem]:
         """
