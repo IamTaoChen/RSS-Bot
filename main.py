@@ -1,7 +1,7 @@
 from src.Config import Config
-from src.Rss import Rss, get_newest_time
+from src.Rss import Rss, RssFetchErr, get_newest_time
 from src.Ai import AiAgent
-from src.Notify import NotifyConfig
+from src.Notify import NotifyConfig, Msg
 from datetime import datetime, timezone, timedelta
 from dataclasses import dataclass, field
 from time import sleep
@@ -14,6 +14,8 @@ class RssMain:
     enable: bool = True
     last: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     notifies: list[NotifyConfig] = field(default_factory=list)
+    error_count: int = 0
+    msgs_buffer: list[Msg] = field(default_factory=list)
 
 
 class App:
@@ -30,13 +32,12 @@ class App:
 
         now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S %Z")
 
-        # ANSI 颜色码映射
         color_map = {
-            'INFO': '\033[34m',     # 蓝色
-            'WARNING': '\033[33m',  # 黄色
-            'ERROR': '\033[31m',    # 红色
-            'DEBUG': '\033[90m',    # 灰色
-            'SUCCESS': '\033[32m'   # 绿色（自定义等级）
+            'INFO': '\033[34m',     # Blue
+            'WARNING': '\033[33m',  # Yellow
+            'ERROR': '\033[31m',    # Red
+            'DEBUG': '\033[90m',    # Gray
+            'SUCCESS': '\033[32m'   # Green
         }
 
         color = color_map.get(level.upper(), '')
@@ -68,6 +69,18 @@ class App:
             self.rss[rss_name] = rss_main
             self.log(f"Initialized RSS feed: {rss_name}")
 
+    def make_error_msg(self, rss_name: str, url: str, error: Exception) -> Msg:
+        return Msg(
+            title=f"❗ Error: {rss_name}",
+            description=f"Something went wrong while processing the RSS feed.\n\nURL: {url}",
+            link=url,
+            pub_date=datetime.now(timezone.utc),
+            contents={
+                "Exception": str(error),
+                "RSS Name": rss_name
+            }
+        )
+
     def run(self, interval: int = 60):
         self.print_split(order=0)
         while True:
@@ -79,29 +92,56 @@ class App:
                     self.log(f"❌ {rss_name} is disabled, skipping...")
                     self.print_split(order=2)
                     continue
+
                 self.log(f"📡 Start handling RSS - {rss_name} (since {rss_combine.last})")
 
                 try:
                     all_items = rss_combine.rss.fetch()
                     new_rss_items = rss_combine.rss.get_items_since(rss_combine.last)
                     self.log(f"📎 Found {len(new_rss_items)} new item(s)")
-
                     if new_rss_items:
                         self.log("🧠 Summarizing with AI agent...")
                         self.rss[rss_name].last = get_newest_time(new_rss_items)
                         msgs = rss_combine.rss.summarize(new_rss_items)
-                        self.log("📤 Start to send messages...")
-                        for notify in rss_combine.notifies:
-                            notify.send(msgs=msgs, local_tz=self._config.timezone)
+                        rss_combine.msgs_buffer.extend(msgs)
+
+                    if rss_combine.error_count > 0:
+                        self.log(f"✅ {rss_name} is back online after {rss_combine.error_count} failed attempts.")
+                        rss_combine.error_count = 0
+
+                except RssFetchErr as e:
+                    rss_combine.error_count += 1
+                    self.log(f"❗ Error while handling {rss_name} (fail count: {rss_combine.error_count}): {e}", level="ERROR")
+                    if rss_combine.error_count == 3:
+                        self.log("📬 Notify user about fetch failure...")
+                        msg = self.make_error_msg(rss_name, rss_combine.rss.config.url, e)
+                        rss_combine.msgs_buffer.append(msg)
 
                 except Exception as e:
-                    self.log(f"❗ Error while handling {rss_name}: {e}", level="ERROR")
+                    self.log(f"❗ Unknown error while handling {rss_name}: {e}", level="ERROR")
+                self.send()
                 self.print_split(order=2)
 
             self.print_split(order=1)
             next_check = datetime.now(timezone.utc) + timedelta(seconds=interval)
             print(f"🕒 Sleep for {interval} seconds... Next check at {next_check.strftime('%Y-%m-%d %H:%M:%S %Z')}")
             sleep(interval)
+
+    def send(self) -> None:
+        for rss_name, rss_combine in self.rss.items():
+            if not rss_combine.msgs_buffer:
+                continue
+
+            self.log(f"📤 Sending {len(rss_combine.msgs_buffer)} message(s) for {rss_name}...")
+
+            failed_ids = set()
+            for notify in rss_combine.notifies:
+                failed = notify.send(msgs=rss_combine.msgs_buffer, local_tz=self._config.timezone)
+                failed_ids.update(id(msg) for msg in failed)
+
+            rss_combine.msgs_buffer = [msg for msg in rss_combine.msgs_buffer if id(msg) in failed_ids]
+            if rss_combine.msgs_buffer:
+                self.log(f"⚠️ {rss_name}: {len(rss_combine.msgs_buffer)} message(s) failed to send and will be retried.", level="WARNING")
 
 
 if __name__ == "__main__":

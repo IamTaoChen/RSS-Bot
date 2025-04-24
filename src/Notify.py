@@ -9,23 +9,36 @@ from abc import ABC, abstractmethod
 import requests
 import time
 
+SESSION = requests.Session()
+
 
 @dataclass
 class NotifyConfig(_Config, ABC):
     username: str
     token: str
 
+    def send(self, msgs: Msg | list[Msg], use_html: bool = None, local_tz: tzinfo = None) -> list[Msg]:
+        """
+        Send messages. Remove successfully sent messages from list.
+        """
+        if isinstance(msgs, Msg):
+            msgs = [msgs]
+        elif not isinstance(msgs, list):
+            raise Exception("The msgs should be Msg or list[Msg]")
+
+        failed_msgs = []
+        for msg in msgs:
+            if not self.send_core(msg=msg, use_html=use_html, local_tz=local_tz):
+                failed_msgs.append(msg)
+
+        # Keep only failed messages
+        return failed_msgs
+
     @abstractmethod
-    def send(self, msgs: Msg | list[Msg], use_html: bool = True, local_tz: tzinfo = None) -> bool:
-        """
-        Send msg
-        """
+    def send_core(self, msg: Msg, use_html: bool = True, local_tz: tzinfo = None) -> bool:
         pass
 
     def msg2str(self, msg: Msg, html: bool = False, local_tz: tzinfo = None) -> str:
-        """
-        Format
-        """
         return str(msg)
 
     def format_dt(self, dt: datetime, tz: tzinfo = None) -> str:
@@ -38,55 +51,52 @@ class MatrixConfig(NotifyConfig):
     homeserver: str
     room_id: str
 
-    def send(self, msgs: Msg | list[Msg], use_html: bool = True, local_tz: tzinfo = None) -> bool:
-        if isinstance(msgs, Msg):
-            msgs = [msgs]
-        elif not isinstance(msgs, list):
-            raise Exception("The msgs should be Msg or list[Msg]")
+    def send_core(self, msg: Msg, use_html: bool = True, local_tz: tzinfo = None) -> bool:
+        if use_html is None:
+            use_html = True
+        body = self.msg2str(msg, html=use_html, local_tz=local_tz)
+        payload = {
+            "msgtype": "m.text",
+            "body": body
+        }
 
-        session = requests.Session()
+        if use_html:
+            payload["format"] = "org.matrix.custom.html"
+            payload["formatted_body"] = self.msg2str(msg, html=True)
 
-        for msg in msgs:
-            body = self.msg2str(msg, html=False, local_tz=local_tz)
-            payload = {
-                "msgtype": "m.text",
-                "body": body
-            }
+        txn_id = str(int(time.time() * 1000))
+        url = f"{self.homeserver}/_matrix/client/r0/rooms/{self.room_id}/send/m.room.message/{txn_id}"
+        headers = {"Authorization": f"Bearer {self.token}"}
+        res = SESSION.put(url, headers=headers, json=payload)
 
-            if use_html:
-                payload["format"] = "org.matrix.custom.html"
-                payload["formatted_body"] = self.msg2str(msg, html=True)
-
-            txn_id = str(int(time.time() * 1000))
-            url = f"{self.homeserver}/_matrix/client/r0/rooms/{self.room_id}/send/m.room.message/{txn_id}"
-            headers = {"Authorization": f"Bearer {self.token}"}
-            session.put(url, headers=headers, json=payload)
+        return res.status_code == 200
 
     def msg2str(self, msg: Msg, html: bool = False, local_tz: tzinfo = None) -> str:
         lines = []
 
         def fmt(k: str, v: str) -> str:
-            if html:
-                return f"<b>{k}:</b> {v}<br>"
-            return f"{k}: {v}"
+            return f"<b>{k}:</b> {v}<br>" if html else f"{k}: {v}"
 
+        # Title
         title = ' '.join(msg.title.strip().split())
         lines.append(f"<h4>{title}</h4>" if html else f"Title: {title}")
 
+        # Description
         if msg.description:
             lines.append(fmt("Description", msg.description.strip()))
 
+        # Link
         if msg.link:
             link = f'<a href="{msg.link}">{msg.link}</a>' if html else msg.link
             lines.append(fmt("Link", link))
 
+        # Pub date
         if msg.pub_date:
-            date_str = self.format_dt(dt=msg.pub_date, tz=None)
-            lines.append(fmt("PubDate", date_str))
+            lines.append(fmt("PubDate", self.format_dt(msg.pub_date)))
             if local_tz:
-                local_str = self.format_dt(dt=msg.pub_date, tz=local_tz)
-                lines.append(fmt("LocalTime", local_str))
+                lines.append(fmt("LocalTime", self.format_dt(msg.pub_date, local_tz)))
 
+        # Images
         if msg.images:
             if html:
                 for img in msg.images:
@@ -94,19 +104,19 @@ class MatrixConfig(NotifyConfig):
             else:
                 lines.append(fmt("Images", ', '.join(msg.images)))
 
+        # Authors
         if msg.authors:
             lines.append(fmt("Authors", ', '.join(msg.authors)))
 
+        # Contents
         if msg.contents:
             lines.append("<hr><b>CONTENTS</b><br>" if html else "===== CONTENTS =====")
-
             if isinstance(msg.contents, dict):
                 for k, v in msg.contents.items():
                     if html:
                         lines.append(f"<b>{k}</b><br><pre>{v.strip()}</pre><br>")
                     else:
                         lines.append(f"{k}:\n{v.strip()}\n")
-
             elif isinstance(msg.contents, str):
                 content_text = msg.contents.strip()
                 if html:

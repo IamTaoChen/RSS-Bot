@@ -4,16 +4,20 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 import feedparser
-import time
-import requests
-from bs4 import BeautifulSoup
 from .Ai import AiAgent
 from .Utils import _Config, Msg
-from pathlib import Path
 from datetime import datetime, timezone
 import calendar
-import re
-from html import unescape
+
+
+class RssFetchErr(Exception):
+    def __init__(self, url: str, original_exception: Exception = None):
+        self.url = url
+        self.original_exception = original_exception
+        message = f"Failed to fetch RSS feed from {url}"
+        if original_exception:
+            message += f" | Reason: {repr(original_exception)}"
+        super().__init__(message)
 
 
 @dataclass
@@ -64,7 +68,10 @@ class Rss():
 
     def _post_init_(self) -> None:
         self._ai_agent.init()
-        self.fetch()
+        try:
+            self.fetch()
+        except:
+            pass
 
     @property
     def items(self) -> list[RssItem]:
@@ -82,6 +89,9 @@ class Rss():
         """
 
         feed = feedparser.parse(self.config.url)
+        if feed.bozo:
+            raise RssFetchErr(self.config.url, feed.bozo_exception)
+
         self._rss_items = []
 
         for entry in feed.entries:
