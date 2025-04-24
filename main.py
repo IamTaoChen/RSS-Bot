@@ -75,6 +75,7 @@ class App:
             description=f"Something went wrong while processing the RSS feed.\n\nURL: {url}",
             link=url,
             pub_date=datetime.now(timezone.utc),
+            msg_type='error',
             contents={
                 "Exception": str(error),
                 "RSS Name": rss_name
@@ -108,6 +109,7 @@ class App:
                     if rss_combine.error_count > 0:
                         self.log(f"✅ {rss_name} is back online after {rss_combine.error_count} failed attempts.")
                         rss_combine.error_count = 0
+                        rss_combine.msgs_buffer = [msg for msg in rss_combine.msgs_buffer if msg.msg_type != 'error']
 
                 except RssFetchErr as e:
                     rss_combine.error_count += 1
