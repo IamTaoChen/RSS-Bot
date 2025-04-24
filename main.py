@@ -60,8 +60,11 @@ class App:
         print(symbol * size)
 
     def _init_rss(self) -> None:
+        self.log(f"Initializing RSS...")
+        self.log(f"Loading AI agent...")
         ai_agent = AiAgent(ai_config=self._config.ai)
         for rss_name, rss_config in self._config.rss.items():
+            self.log(f"Initializing RSS feed: {rss_name} with the type {rss_config.type}")
             rss = create_rss(rss_config=rss_config, ai_agent=ai_agent, translate_to="Chinese")
             now = datetime.now(timezone.utc)
             notifies = self._config.get_notfies_by_names(self._config.rss_notify[rss_name])
