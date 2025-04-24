@@ -8,11 +8,15 @@ ai:
 
 rss:
   - name: elonmusk
-    url: http://127.0.0.1:8080/elonmusk/rss
-    enable: True
+    url: http://127.0.0.1:8080
+    type: nitter
+    enable: true
     description: ""
+    others:
+      author: "elonmusk"
+      public_url: https://x.com
     notify:
-      - "matrix-2"
+      - "matrix-1"
 
   - name: test
     url: https://rss.arxiv.org/atom/quant-ph

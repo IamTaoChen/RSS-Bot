@@ -1,0 +1,168 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+from __future__ import annotations
+from dataclasses import dataclass, field
+from .Utils import _Config, Msg
+from .Rss import Rss, RssItem, RssConfig
+from .Ai import AiAgent
+import re
+
+
+def extract_html_p(html: str) -> str:
+    """
+    Extracts the content of the first <p> tag from the given HTML string.
+    :param html: HTML string
+    :return: Content of the first <p> tag or the original HTML if no <p> tag is found
+    """
+    match = re.search(r"<p>(.*?)</p>", html, re.DOTALL)
+    return match.group(1) if match else html
+
+
+@dataclass
+class Retweet:
+    title: str
+    id: str = ""
+    author: str = None
+    description: str = ""
+
+    @classmethod
+    def is_retweet(cls, item: RssItem, nitter_public_url: str = "https://x.com", nitter_url: str = None) -> tuple[bool, "Retweet"]:
+        """
+        Extract tweet info from RSS item.
+        :param item: RSS feed item
+        :param nitter_public_url: Base Twitter/Nitter URL (e.g., https://x.com or https://nitter.net)
+        :param nitter_url: Nitter RSS URL, if it's None, it will use the nitter_public_url
+        :return: Tuple of (is_retweet, Retweet object or None)
+        """
+        if nitter_url is None:
+            nitter_url = nitter_public_url
+        pattern = re.compile(r"<p>(.*?)</p>", re.DOTALL)
+        matches = pattern.findall(item.description)
+        if not matches:
+            return False, None
+
+        description_parts = []
+        author = None
+        tweet_link = None
+
+        # Escape the base URL for safe regex usage
+        safe_url_pattern = re.escape(nitter_public_url.rstrip("/"))
+
+        for match in matches:
+            href_match = re.search(rf'href="({safe_url_pattern}/([^/]+)/status/(\d+)[^"]*)"', match)
+            if href_match:
+                tweet_link = href_match.group(1)
+                author = href_match.group(2)
+            else:
+                clean_text = re.sub(r"<.*?>", "", match).strip()
+                if clean_text:
+                    description_parts.append(clean_text)
+        retweet = cls(
+            title=item.title.strip(),
+            id=tweet_link or item.link,
+            author=author,
+            description=description_parts
+        )
+        try:
+            nitter_rss_url = nitter_url + "/"+author+"/rss"
+            rss_items = Rss.fetch_from_url(nitter_rss_url)
+            for item in rss_items:
+                if item.link == tweet_link:
+                    description = item.description
+                    break
+            retweet.description = extract_html_p(description)
+            return True, retweet
+        except:
+            return False, None
+
+
+def test(item: RssItem) -> None | Retweet:
+    """
+    Test if the item is valid.
+    :param item: The item to test.
+    :return: True if the item is valid, False otherwise.
+    """
+    pattern = re.compile(r"<p>(.*?)</p>", re.DOTALL)
+    matches = pattern.findall(item.description)
+    if not matches:
+        return None
+    for match in matches:
+        print(match)
+
+
+class RssNitter(Rss):
+    """
+    This class Inherits from the Rss class.
+    """
+
+    def __init__(self, config: RssConfig, ai_agent: AiAgent, translate_to: str = "Chinese"):
+        self.url = config.url
+        self.author = config.others.get("author", None)
+        self.public_url = config.others.get("public_url", "https://x.com")
+        super().__init__(config=config, ai_agent=ai_agent, translate_to=translate_to)
+
+    @property
+    def rss_url(self) -> str:
+        """
+        Get the RSS URL.
+        :return: The RSS URL.
+        """
+        return f"{self.url}/{self.author}/rss"
+
+    # def fetch(self) -> list[RssItem]:
+    #     items = super().fetch()
+    #     for item in items[:2]:
+    #         print("--" * 20)
+    #         is_retweet, retweet = Retweet.is_retweet(item=item, nitter_public_url=self.public_url, nitter_url=self.url)
+    #         if is_retweet:
+    #             print(f"Retweet found: {retweet}")
+    #     return items
+
+    def prompt(self, item: RssItem, translate_to: str = 'Chinese', custom_prompt: str = None) -> str:
+        """
+        build prompt for AI agent to summarize the rss item
+        :param item: RssItem object
+        :param translate_to: language to translate to
+        :param custom_prompt: custom prompt for AI agent
+        :return: prompt string
+        """
+        translate_to = translate_to.strip().lower()
+
+        prompt = custom_prompt or ""
+        if not custom_prompt:
+            prompt = (
+                f"You will be given a twitter from {item.authors}\n"
+                "Determine if it is an original post(who), a retweet(who), or a quoted tweet(who).\n"
+                "If it's a quote/retweet, summarize both the original and the comment separately.\n"
+                "Also, please research the background of this post\n"
+                "Extract the most relevant information.\n"
+            )
+
+        if translate_to != "original":
+            prompt += f"Then translate the summary into {translate_to.capitalize()}.\n"
+
+        prompt += self.item_flatten(item=item)
+        return prompt
+
+    def item_flatten(self, item: RssItem) -> str:
+        """
+        Flatten the RssItem object into a string.
+        :param item: RssItem object
+        :return: flattened string
+        """
+        is_retweet, retweet = Retweet.is_retweet(item=item, nitter_public_url=self.public_url, nitter_url=self.url)
+        _str = self.rss_item_flatten(item=item)
+        if is_retweet:
+            print(f"Retweet found: {retweet}")
+            _str += (
+                "\n---\n"
+                "Retweet from: \n"
+                f"Title: {retweet.title}\n"
+                f"description: {retweet.description}\n"
+                f"Link: {retweet.id}\n"
+                "---"
+            )
+        else:
+            print("No retweet found")
+        return _str

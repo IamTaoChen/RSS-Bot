@@ -47,6 +47,8 @@ class RssConfig(_Config):
     name: str
     url: str
     description: str = None
+    type: str = "rss"
+    others: dict = field(default_factory=dict)
 
     def __post_init__(self):
         if not self.name:
@@ -74,6 +76,10 @@ class Rss():
             pass
 
     @property
+    def rss_url(self) -> str:
+        return self.config.url
+
+    @property
     def items(self) -> list[RssItem]:
         return self._rss_items.copy()
 
@@ -91,16 +97,17 @@ class Rss():
         # Filter items with pub_date > since
         return [item for item in self.items if item.pub_date and item.pub_date > since]
 
-    def fetch(self) -> list[RssItem]:
+    @classmethod
+    def fetch_from_url(cls, rss_url: str) -> list[RssItem]:
         """
         Fetches the RSS feed from the URL and returns a list of RssItem objects.
         """
 
-        feed = feedparser.parse(self.config.url)
+        feed = feedparser.parse(rss_url)
         if feed.bozo:
-            raise RssFetchErr(self.config.url, feed.bozo_exception)
+            raise RssFetchErr(rss_url, feed.bozo_exception)
 
-        self._rss_items = []
+        _rss_items = []
 
         for entry in feed.entries:
             # 1. title 清洗（去换行、压缩空格、限制长度）
@@ -136,45 +143,71 @@ class Rss():
                 authors=authors,
                 content=content
             )
-            self._rss_items.append(item)
-        return self._rss_items
+            _rss_items.append(item)
+        return _rss_items
 
-    def prompt(self, item: RssItem, translate_to: str = 'Chinese') -> str:
+    def fetch(self) -> list[RssItem]:
         """
+        Fetches the RSS feed from the URL and returns a list of RssItem objects.
+        """
+        items = self.fetch_from_url(self.rss_url)
+        self._rss_items = items
+        return items
 
+    def prompt(self, item: RssItem, translate_to: str = 'Chinese', custom_prompt: str = None) -> str:
         """
-        content = item.content or item.description
+        build prompt for AI agent to summarize the rss item
+        :param item: RssItem object
+        :param translate_to: language to translate to
+        :param custom_prompt: custom prompt for AI agent
+        :return: prompt string
+        """
         translate_to = translate_to.strip().lower()
 
-        prompt = (
-            "You will be given a social media or news post.\n"
-            "Determine if it is an original post(who), a retweet(who), or a quoted tweet(who).\n"
-            "If it's a quote/retweet, summarize both the original and the comment separately.\n"
-            "Also, please research the background of this post\n"
-            "Extract the most relevant information.\n"
-        )
+        prompt = custom_prompt or ""
+        if not custom_prompt:
+            prompt = (
+                "You will be given a social media or news post.\n"
+                "Determine if it is an original post(who), a retweet(who), or a quoted tweet(who).\n"
+                "If it's a quote/retweet, summarize both the original and the comment separately.\n"
+                "Also, please research the background of this post\n"
+                "Extract the most relevant information.\n"
+            )
 
         if translate_to != "original":
             prompt += f"Then translate the summary into {translate_to.capitalize()}.\n"
 
-        prompt += (
+        prompt += self.rss_item_flatten(item=item)
+        return prompt
+
+    @classmethod
+    def rss_item_flatten(cls, item: RssItem) -> str:
+        """
+        Flatten the RssItem object into a string.
+        :param item: RssItem object
+        :return: flattened string
+        """
+        content = item.content or item.description
+        _str = (
             "\n---\n"
             f"Title: {item.title}\n"
             f"Content: {content}\n"
             f"Link: {item.link}\n"
             "---"
         )
-        return prompt
+        return _str
 
     def format_output(self, contents: str) -> str:
         """
-
+        Format the output from the AI agent.
         """
         return contents
 
     def summarize(self, items: list[RssItem] = None) -> list[Msg]:
         """
-
+        Summarize the RSS items using the AI agent.
+        :param items: list of RssItem objects
+        :return: list of Msg objects
         """
         if items is None:
             items = self.items[-10:]

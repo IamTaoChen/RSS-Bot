@@ -2,6 +2,7 @@ from src.Config import Config
 from src.Rss import Rss, RssFetchErr, get_newest_time
 from src.Ai import AiAgent
 from src.Notify import NotifyConfig, Msg
+from src import create_rss
 from datetime import datetime, timezone, timedelta
 from dataclasses import dataclass, field
 from time import sleep
@@ -61,7 +62,7 @@ class App:
     def _init_rss(self) -> None:
         ai_agent = AiAgent(ai_config=self._config.ai)
         for rss_name, rss_config in self._config.rss.items():
-            rss = Rss(config=rss_config, ai_agent=ai_agent)
+            rss = create_rss(rss_config=rss_config, ai_agent=ai_agent, translate_to="Chinese")
             now = datetime.now(timezone.utc)
             notifies = self._config.get_notfies_by_names(self._config.rss_notify[rss_name])
             enable = self._config.rss_enable[rss_name]
