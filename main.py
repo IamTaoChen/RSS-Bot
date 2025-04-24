@@ -20,6 +20,15 @@ class RssMain:
 
 
 class App:
+    color_map = {
+        'INFO': '\033[34m',     # Blue
+        'WARNING': '\033[33m',  # Yellow
+        'ERROR': '\033[31m',    # Red
+        'DEBUG': '\033[90m',    # Gray
+        'SUCCESS': '\033[32m'   # Green
+    }
+    color_reset = '\033[0m'
+
     def __init__(self, cfg_file: str):
         self.verbose = True
         self.log(f"App parsing config file: {cfg_file}")
@@ -37,19 +46,8 @@ class App:
         except:
             pass
         now = datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S %Z")
-
-        color_map = {
-            'INFO': '\033[34m',     # Blue
-            'WARNING': '\033[33m',  # Yellow
-            'ERROR': '\033[31m',    # Red
-            'DEBUG': '\033[90m',    # Gray
-            'SUCCESS': '\033[32m'   # Green
-        }
-
-        color = color_map.get(level.upper(), '')
-        reset = '\033[0m'
-
-        print(f"{color}[{now}] [{level.upper()}] {msg}{reset}")
+        color = self.color_map.get(level.upper(), '')
+        print(f"{color}[{now}] [{level.upper()}] {msg}{self.color_reset}")
 
     def print_split(self, order: int = 0):
         symbol = "="
