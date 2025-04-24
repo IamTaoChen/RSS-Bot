@@ -30,8 +30,13 @@ class App:
     def log(self, msg: str, level: str = 'INFO'):
         if not self.verbose:
             return
-
-        now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S %Z")
+        tz = timezone.utc
+        try:
+            if self._config.timezone:
+                tz = self._config.timezone
+        except:
+            pass
+        now = datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S %Z")
 
         color_map = {
             'INFO': '\033[34m',     # Blue
