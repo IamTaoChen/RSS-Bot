@@ -52,6 +52,12 @@ class AiAgent():
         self._config = ai_config
         self.__client: openai.OpenAI = None
         self.__init: bool = False
+        self.init()
+
+    def __eq__(self, other: AiAgent) -> bool:
+        if not isinstance(other, AiAgent):
+            return False
+        return self._config == other._config
 
     @property
     def client(self) -> openai.OpenAI:
