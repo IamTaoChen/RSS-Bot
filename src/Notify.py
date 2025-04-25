@@ -12,10 +12,11 @@ import time
 SESSION = requests.Session()
 
 
-@dataclass
+@dataclass(kw_only=True)
 class NotifyConfig(_Config, ABC):
     username: str
     token: str
+    name: str = None
 
     def send(self, msgs: Msg | list[Msg], use_html: bool = True, local_tz: tzinfo = None) -> list[Msg]:
         """

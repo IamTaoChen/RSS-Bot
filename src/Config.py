@@ -46,9 +46,8 @@ class Config(_Config):
         if 'notify' in dict_data:
             for notify in dict_data['notify']:
                 notify_type: str = notify.pop('type').lower()
-                notify_name: str = notify.pop('name')
                 if notify_type == 'matrix':
-                    notify_dict[notify_name] = MatrixConfig.load_from_dict(notify)
+                    notify_dict[notify['name']] = MatrixConfig.load_from_dict(notify)
         timezone: tzinfo = None
         if 'timezone' in dict_data:
             try:

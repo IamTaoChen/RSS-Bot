@@ -87,14 +87,28 @@ class App:
 
             # refill the notify
             notifies = self._config.get_notfies_by_names(self._config.rss_notify[rss_name])
+            notifies_names = [notify.name for notify in notifies]
+            if len(notifies) <= 0:
+                self.log(f"❗ No notify found for {rss_name}, please check the config file.", level="Warning")
+            else:
+                self.log(f"Found {len(notifies)} notify(s) for {rss_name}: {', '.join(notifies_names)}")
             rss_main.notifies = notifies
             # refill the enable
             enable = self._config.rss_enable[rss_name]
+            if not enable:
+                self.log(f"❗ RSS feed {rss_name} is disabled, it will not be fetched.", level="WARNING")
             rss_main.enable = enable
-
             new_rss_dict[rss_name] = rss_main
             self.log(f"Initialized RSS feed: {rss_name}", level="SUCCESS")
         self.rss = new_rss_dict
+        self.print_split(order=3)
+        enable_names = [rss_name for rss_name, rss in self.rss.items() if rss.enable]
+        diable_names = [rss_name for rss_name, rss in self.rss.items() if not rss.enable]
+        print("📰 RSS feeds will be fetched:")
+        if len(enable_names) > 0:
+            print(f"  - ✅ \033[32mEnabled\033[0m: {', '.join(enable_names)}")
+        if len(diable_names) > 0:
+            print(f"  - ❌ \033[31mDisabled\033[0m: {', '.join(diable_names)}")
         self.print_split(order=3)
         self.log(f"All RSS feeds initialized successfully.", level="SUCCESS")
 
@@ -120,8 +134,6 @@ class App:
                     self.print_split(order=2)
 
                     if not getattr(rss_combine, "enable", True):
-                        self.log(f"❌ {rss_name} is disabled, skipping...")
-                        self.print_split(order=2)
                         continue
                     date_str = NotifyConfig.format_dt(dt=rss_combine.last, tz=self._config.timezone)
                     self.log(f"📡 Start handling RSS - {rss_name} (since {date_str})")
@@ -173,6 +185,7 @@ class App:
 
             failed_ids = set()
             for notify in rss_combine.notifies:
+                self.log(f"🔔 Sending {len(rss_combine.msgs_buffer)} message(s) to {notify.name}...")
                 failed = notify.send(msgs=rss_combine.msgs_buffer, local_tz=self._config.timezone)
                 failed_ids.update(id(msg) for msg in failed)
 
