@@ -32,6 +32,7 @@ class Config(_Config):
         if 'rss' in dict_data:
             for rss in dict_data['rss']:
                 notify = rss.pop('notify')
+                notify = list(set(notify))
                 try:
                     enable = rss.pop('enable')
                 except:
