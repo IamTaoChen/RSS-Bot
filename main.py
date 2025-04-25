@@ -7,6 +7,7 @@ from datetime import datetime, timezone, timedelta
 from dataclasses import dataclass, field
 from time import sleep
 import argparse
+from pathlib import Path
 
 
 @dataclass
@@ -32,8 +33,9 @@ class App:
     def __init__(self, cfg_file: str):
         self.verbose = True
         self.log(f"App parsing config file: {cfg_file}")
-        self._cfg_file = cfg_file
-        self._config: Config = Config.load_from_yaml(cfg_file=cfg_file)
+        self._cfg_file = Path(cfg_file)
+        self._cfg_file_last_mtime = self._cfg_file.stat().st_mtime
+        self._config: Config = Config.load_from_yaml(cfg_file=self.cfg_file)
         self.rss: dict[str, RssMain] = {}
         self._init_rss_()
 
@@ -197,6 +199,12 @@ class App:
         """
         check if the config is modified, if so, reload the config
         """
+        if not self.cfg_file.exists():
+            return
+        _cfg_file_last_mtime = self._cfg_file.stat().st_mtime
+        if _cfg_file_last_mtime == self._cfg_file_last_mtime:
+            return
+        self._cfg_file_last_mtime = _cfg_file_last_mtime
         tmp_config: Config = Config.load_from_yaml(cfg_file=self.cfg_file)
         if self._config != tmp_config:
             self.print_split(order=4)
