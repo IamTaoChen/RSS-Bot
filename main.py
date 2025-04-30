@@ -129,6 +129,7 @@ class App:
 
     def run(self, interval: int = 60):
         self.print_split(order=0)
+        t0 = datetime.now()
         try:
             while True:
                 self.print_split(order=1)
@@ -171,7 +172,9 @@ class App:
                     next_check = datetime.now(timezone.utc) + timedelta(seconds=interval)
                     date_str = NotifyConfig.format_dt(dt=next_check, tz=self._config.timezone)
                     print(f"🕒 Sleep for {interval} seconds... Next check at {date_str}")
-                    sleep(interval)
+                    sleep_time = timedelta(seconds=interval) - (datetime.now() - t0)
+                    sleep_seconds = max(sleep_time.total_seconds(), 0)
+                    sleep(sleep_seconds)
                     self.check_config_and_load()
         except KeyboardInterrupt:
             self.log("🛑 Exiting...")
@@ -216,9 +219,16 @@ class App:
 
 
 if __name__ == "__main__":
+    import os
+    import argparse
+
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--config", required=False, help="Path to config YAML file", default='./config.yaml')
-    parser.add_argument("-i", "--interval", type=int, required=False, help="Polling interval in seconds", default=60)
+    parser.add_argument("-i", "--interval", type=int, required=False, help="Polling interval in seconds", default=None)
     args = parser.parse_args()
+
+    interval_env = os.getenv("RSS_INTERVAL")
+    interval_sec = args.interval if args.interval is not None else int(interval_env) if interval_env else 60
+
     app = App(cfg_file=args.config)
-    app.run(interval=args.interval)
+    app.run(interval=interval_sec)
