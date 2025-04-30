@@ -129,9 +129,9 @@ class App:
 
     def run(self, interval: int = 60):
         self.print_split(order=0)
-        t0 = datetime.now()
         try:
             while True:
+                t0 = datetime.now()
                 self.print_split(order=1)
                 for rss_name, rss_combine in self.rss.items():
                     self.print_split(order=2)
