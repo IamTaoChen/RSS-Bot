@@ -14,4 +14,4 @@ ENV PYTHONUNBUFFERED=1
 
 ENTRYPOINT [ "python", "main.py" ]
 
-CMD ["-c", "config.yaml","-i","60"]
+CMD ["-c", "config.yaml"]

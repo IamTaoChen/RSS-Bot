@@ -231,4 +231,5 @@ if __name__ == "__main__":
     interval_sec = args.interval if args.interval is not None else int(interval_env) if interval_env else 60
 
     app = App(cfg_file=args.config)
+    app.log(f"Fetch RSS evey {interval_sec} second")
     app.run(interval=interval_sec)
