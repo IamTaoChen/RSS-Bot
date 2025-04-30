@@ -169,11 +169,15 @@ class App:
                     self.send()
                     self.print_split(order=2)
                     self.print_split(order=1)
-                    next_check = datetime.now(timezone.utc) + timedelta(seconds=interval)
-                    date_str = NotifyConfig.format_dt(dt=next_check, tz=self._config.timezone)
-                    print(f"🕒 Sleep for {interval} seconds... Next check at {date_str}")
-                    sleep_time = timedelta(seconds=interval) - (datetime.now() - t0)
-                    sleep_seconds = max(sleep_time.total_seconds(), 0)
+                    # 计算已耗时和剩余等待时间
+                    elapsed = datetime.now() - t0
+                    remaining = max(timedelta(seconds=interval) - elapsed, timedelta(0))
+                    sleep_seconds = remaining.total_seconds()
+                    # 计算下次检查时间并格式化
+                    next_check_utc = datetime.now(timezone.utc) + remaining
+                    next_check_str = NotifyConfig.format_dt(dt=next_check_utc, tz=self._config.timezone)
+                    # 打印信息并等待
+                    print(f"🕒 Waiting {sleep_seconds:.2f}s... Next check at {next_check_str}")
                     sleep(sleep_seconds)
                     self.check_config_and_load()
         except KeyboardInterrupt:
