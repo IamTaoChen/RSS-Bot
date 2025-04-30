@@ -168,18 +168,18 @@ class App:
                         self.log(f"❗ Unknown error while handling {rss_name}: {e}", level="ERROR")
                     self.send()
                     self.print_split(order=2)
-                    self.print_split(order=1)
-                    # 计算已耗时和剩余等待时间
-                    elapsed = datetime.now() - t0
-                    remaining = max(timedelta(seconds=interval) - elapsed, timedelta(0))
-                    sleep_seconds = remaining.total_seconds()
-                    # 计算下次检查时间并格式化
-                    next_check_utc = datetime.now(timezone.utc) + remaining
-                    next_check_str = NotifyConfig.format_dt(dt=next_check_utc, tz=self._config.timezone)
-                    # 打印信息并等待
-                    print(f"🕒 Waiting {sleep_seconds:.2f}s... Next check at {next_check_str}")
-                    sleep(sleep_seconds)
-                    self.check_config_and_load()
+                self.print_split(order=1)
+                # 计算已耗时和剩余等待时间
+                elapsed = datetime.now() - t0
+                remaining = max(timedelta(seconds=interval) - elapsed, timedelta(0))
+                sleep_seconds = remaining.total_seconds()
+                # 计算下次检查时间并格式化
+                next_check_utc = datetime.now(timezone.utc) + remaining
+                next_check_str = NotifyConfig.format_dt(dt=next_check_utc, tz=self._config.timezone)
+                # 打印信息并等待
+                print(f"🕒 Waiting {sleep_seconds:.2f}s... Next check at {next_check_str}")
+                sleep(sleep_seconds)
+                self.check_config_and_load()
         except KeyboardInterrupt:
             self.log("🛑 Exiting...")
         except Exception as e:
