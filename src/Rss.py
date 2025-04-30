@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 from dataclasses import dataclass, field
+import requests
 import feedparser
 from .Ai import AiAgent
 from .Utils import _Config, Msg
@@ -61,11 +62,12 @@ class RssConfig(_Config):
 
 class Rss():
 
-    def __init__(self, config: RssConfig, ai_agent: AiAgent, translate_to: str = "Chinese"):
+    def __init__(self, config: RssConfig, ai_agent: AiAgent, translate_to: str = "Chinese", timeout: int = 60):
         self.config = config
         self._rss_items: list[RssItem] = []
         self._ai_agent: AiAgent = ai_agent
         self.translate_to: str = translate_to
+        self.timeout: int = timeout
         self._post_init_()
 
     def _post_init_(self) -> None:
@@ -98,14 +100,18 @@ class Rss():
         return [item for item in self.items if item.pub_date and item.pub_date > since]
 
     @classmethod
-    def fetch_from_url(cls, rss_url: str) -> list[RssItem]:
+    def fetch_from_url(cls, rss_url: str, timeout_seconds: int = 60) -> list[RssItem]:
         """
         Fetches the RSS feed from the URL and returns a list of RssItem objects.
         """
-
-        feed = feedparser.parse(rss_url)
-        if feed.bozo:
-            raise RssFetchErr(rss_url, feed.bozo_exception)
+        try:
+            response = requests.get(rss_url, timeout=timeout_seconds)
+            response.raise_for_status()
+            feed = feedparser.parse(response.content)
+            if feed.bozo:
+                raise RssFetchErr(rss_url, feed.bozo_exception)
+        except Exception as e:
+            raise e
 
         _rss_items = []
 
@@ -150,7 +156,7 @@ class Rss():
         """
         Fetches the RSS feed from the URL and returns a list of RssItem objects.
         """
-        items = self.fetch_from_url(self.rss_url)
+        items = self.fetch_from_url(self.rss_url, timeout_seconds=self.timeout)
         self._rss_items = items
         return items
 

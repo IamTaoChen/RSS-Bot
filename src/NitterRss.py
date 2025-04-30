@@ -104,11 +104,13 @@ class RssNitter(Rss):
     This class Inherits from the Rss class.
     """
 
-    def __init__(self, config: RssConfig, ai_agent: AiAgent, translate_to: str = "Chinese"):
+    def __init__(self, config: RssConfig, ai_agent: AiAgent, translate_to: str = "Chinese", timeout: int = 60):
         self.url = config.url
+        self.__url = self.url
         self.author = config.others.get("author", None)
         self.public_url = config.others.get("public_url", "https://x.com")
-        super().__init__(config=config, ai_agent=ai_agent, translate_to=translate_to)
+        self.__public_url = self.public_url
+        super().__init__(config=config, ai_agent=ai_agent, translate_to=translate_to, timeout=timeout)
 
     @property
     def rss_url(self) -> str:
@@ -159,7 +161,7 @@ class RssNitter(Rss):
         :param item: RssItem object
         :return: flattened string
         """
-        is_retweet, retweet = Retweet.is_retweet(item=item, nitter_public_url=self.public_url, nitter_url=self.url)
+        is_retweet, retweet = Retweet.is_retweet(item=item, nitter_public_url=self.__public_url, nitter_url=self.__url)
         _str = self.rss_item_flatten(item=item)
         if is_retweet:
             # print(f"Retweet found: {retweet}")
@@ -174,3 +176,32 @@ class RssNitter(Rss):
         # else:
         #     print("No retweet found")
         return _str
+
+    def fetch(self) -> list[RssItem]:
+        candilates = {
+            "self": self.rss_url,
+            "nitter": "https://nitter.net"
+        }
+        err: Exception = None
+        success: bool = False
+        for key, url in candilates.items():
+            try:
+                if key == "self":
+                    self.__public_url = self.public_url
+                    self.__url = self.url
+                else:
+                    print(f"Try to fetch RSS from {url}")
+                    self.__public_url = url
+                    self.__url = url
+                rss_url = f"{self.__url}/{self.author}/rss"
+                items = self.fetch_from_url(rss_url=rss_url, timeout_seconds=self.timeout)
+                self._rss_items = items
+                success = True
+                return items
+            except Exception as e:
+                print(f"Fetch RSS for {url} failed")
+                if key == "self":
+                    err = e
+
+        if not success:
+            raise err

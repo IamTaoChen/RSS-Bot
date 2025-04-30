@@ -77,7 +77,7 @@ class App:
         for rss_name, rss_config in self._config.rss.items():
             self.print_split(order=3)
             self.log(f"Initializing RSS feed: {rss_name} with the type {rss_config.type}")
-            new_rss = create_rss(rss_config=rss_config, ai_agent=ai_agent, translate_to="Chinese")
+            new_rss = create_rss(rss_config=rss_config, ai_agent=ai_agent, translate_to="Chinese", timeout=10)
             rss_main = self.rss.get(rss_name, None)
             if not rss_main:
                 # if the rss is not initialized, create a new one
