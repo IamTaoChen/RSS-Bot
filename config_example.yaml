@@ -21,6 +21,7 @@ rss:
   - name: test
     url: https://rss.arxiv.org/atom/quant-ph
     enable: true
+    prompts: ""
     notify:
       - matrix-1
 

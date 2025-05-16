@@ -50,6 +50,7 @@ class RssConfig(_Config):
     description: str = None
     type: str = "rss"
     others: dict = field(default_factory=dict)
+    prompts: str = None
 
     def __post_init__(self):
         if not self.name:
@@ -171,6 +172,8 @@ class Rss():
         translate_to = translate_to.strip().lower()
 
         prompt = custom_prompt or ""
+        if isinstance(prompt, list) and len(prompt) > 0 and isinstance(prompt[0], str):
+            prompt = "\n".join(prompt)
         if not custom_prompt:
             prompt = (
                 "You will be given a social media or news post.\n"
@@ -221,7 +224,7 @@ class Rss():
             items = [items]
         msgs: list[Msg] = []
         for item in items:
-            prompt_str = self.prompt(item=item, translate_to=self.translate_to)
+            prompt_str = self.prompt(item=item, translate_to=self.translate_to,custom_prompt=self.config.prompts)
             if verbose:
                 print(f"Summarizing item: {item.title}")
             reply = self._ai_agent.act(prompt=prompt_str)

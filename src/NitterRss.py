@@ -140,6 +140,8 @@ class RssNitter(Rss):
         translate_to = translate_to.strip().lower()
 
         prompt = custom_prompt or ""
+        if isinstance(prompt, list) and len(prompt) > 0 and isinstance(prompt[0], str):
+            prompt = "\n".join(prompt)
         if not custom_prompt:
             prompt = (
                 f"You will be given a twitter from {item.authors}\n"
