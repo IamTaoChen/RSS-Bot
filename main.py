@@ -74,6 +74,7 @@ class App:
         try:
             with open(self.check_time_file.as_posix(), "r") as f:
                 self.check_time_utc = datetime.fromisoformat(f.read().strip())
+                self.log(f"Loaded last check time: {self.check_time_utc.isoformat()}", level="DEBUG")
         except FileNotFoundError:
             self.check_time_utc = datetime.now(timezone.utc)
         except Exception as e:
@@ -98,6 +99,7 @@ class App:
         self.log(f"Loading AI agent...")
         ai_agent = AiAgent(ai_config=self._config.ai)
         new_rss_dict: dict[str, Rss] = {}
+        self.log(f"Check RSS feeds from {self.check_time_utc.isoformat()}")
         for rss_name, rss_config in self._config.rss.items():
             self.print_split(order=3)
             self.log(f"Initializing RSS feed: {rss_name} with the type {rss_config.type}")
