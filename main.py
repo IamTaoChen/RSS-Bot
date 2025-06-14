@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from time import sleep
 import argparse
 from pathlib import Path
+from random import randint
 
 
 @dataclass
@@ -22,28 +23,31 @@ class RssMain:
 
 class App:
     color_map = {
-        'INFO': '\033[34m',     # Blue
-        'WARNING': '\033[33m',  # Yellow
-        'ERROR': '\033[31m',    # Red
-        'DEBUG': '\033[90m',    # Gray
-        'SUCCESS': '\033[32m'   # Green
+        "INFO": "\033[34m",  # Blue
+        "WARNING": "\033[33m",  # Yellow
+        "ERROR": "\033[31m",  # Red
+        "DEBUG": "\033[90m",  # Gray
+        "SUCCESS": "\033[32m",  # Green
     }
-    color_reset = '\033[0m'
+    color_reset = "\033[0m"
 
-    def __init__(self, cfg_file: str):
+    def __init__(self, cfg_file: str, cache_dir: str = "./cache"):
         self.verbose = True
         self.log(f"App parsing config file: {cfg_file}")
         self._cfg_file = Path(cfg_file)
         self._cfg_file_last_mtime = self._cfg_file.stat().st_mtime
         self._config: Config = Config.load_from_yaml(cfg_file=self.cfg_file)
         self.rss: dict[str, RssMain] = {}
+        self.cache_dir: Path = Path(cache_dir)
+        self.check_time_utc: datetime = datetime.now(timezone.utc)
+        self.load_check_time()
         self._init_rss_()
 
     @property
     def cfg_file(self) -> str:
         return self._cfg_file
 
-    def log(self, msg: str, level: str = 'INFO'):
+    def log(self, msg: str, level: str = "INFO"):
         if not self.verbose:
             return
         tz = timezone.utc
@@ -53,8 +57,28 @@ class App:
         except:
             pass
         now = datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S %Z")
-        color = self.color_map.get(level.upper(), '')
+        color = self.color_map.get(level.upper(), "")
         print(f"{color}[{now}] [{level.upper()}] {msg}{self.color_reset}")
+
+    @property
+    def check_time_file(self) -> Path:
+        return self.cache_dir / "check_time.txt"
+
+    def save_check_time(self) -> None:
+        if not self.check_time_utc:
+            self.check_time_utc = datetime.now(timezone.utc)
+        with open(self.check_time_file.as_posix(), "w") as f:
+            f.write(self.check_time_utc.isoformat())
+
+    def load_check_time(self) -> None:
+        try:
+            with open(self.check_time_file.as_posix(), "r") as f:
+                self.check_time_utc = datetime.fromisoformat(f.read().strip())
+        except FileNotFoundError:
+            self.check_time_utc = datetime.now(timezone.utc)
+        except Exception as e:
+            self.log(f"Error loading check time: {e}", level="ERROR")
+            self.check_time_utc = datetime.now(timezone.utc)
 
     def print_split(self, order: int = 0):
         symbol = "="
@@ -66,7 +90,7 @@ class App:
         elif order == 3:
             symbol = "~"
         elif order == 4:
-            symbol = 'x'
+            symbol = "x"
         print(symbol * size)
 
     def _init_rss_(self) -> None:
@@ -100,6 +124,7 @@ class App:
             if not enable:
                 self.log(f"❗ RSS feed {rss_name} is disabled, it will not be fetched.", level="WARNING")
             rss_main.enable = enable
+            rss_main.last = self.check_time_utc
             new_rss_dict[rss_name] = rss_main
             self.log(f"Initialized RSS feed: {rss_name}", level="SUCCESS")
         self.rss = new_rss_dict
@@ -115,23 +140,13 @@ class App:
         self.log(f"All RSS feeds initialized successfully.", level="SUCCESS")
 
     def make_error_msg(self, rss_name: str, url: str, error: Exception) -> Msg:
-        return Msg(
-            title=f"❗ Error: {rss_name}",
-            description=f"Something went wrong while processing the RSS feed.\n\nURL: {url}",
-            link=url,
-            pub_date=datetime.now(timezone.utc),
-            msg_type='error',
-            contents={
-                "Exception": str(error),
-                "RSS Name": rss_name
-            }
-        )
+        return Msg(title=f"❗ Error: {rss_name}", description=f"Something went wrong while processing the RSS feed.\n\nURL: {url}", link=url, pub_date=datetime.now(timezone.utc), msg_type="error", contents={"Exception": str(error), "RSS Name": rss_name})
 
     def run(self, interval: int = 60):
         self.print_split(order=0)
         try:
             while True:
-                t0 = datetime.now()
+                t0 = datetime.now(tz=timezone.utc)
                 self.print_split(order=1)
                 for rss_name, rss_combine in self.rss.items():
                     self.print_split(order=2)
@@ -142,7 +157,7 @@ class App:
                     self.log(f"📡 Start handling RSS - {rss_name} (since {date_str})")
 
                     try:
-                        all_items = rss_combine.rss.fetch()
+                        # all_items = rss_combine.rss.fetch()
                         new_rss_items = rss_combine.rss.get_items_since(rss_combine.last)
                         self.log(f"📎 Found {len(new_rss_items)} new item(s)")
                         if new_rss_items:
@@ -154,7 +169,7 @@ class App:
                         if rss_combine.error_count > 0:
                             self.log(f"✅ {rss_name} is back online after {rss_combine.error_count} failed attempts.")
                             rss_combine.error_count = 0
-                            rss_combine.msgs_buffer = [msg for msg in rss_combine.msgs_buffer if msg.msg_type != 'error']
+                            rss_combine.msgs_buffer = [msg for msg in rss_combine.msgs_buffer if msg.msg_type != "error"]
 
                     except RssFetchErr as e:
                         rss_combine.error_count += 1
@@ -170,14 +185,18 @@ class App:
                     self.print_split(order=2)
                 self.print_split(order=1)
                 # 计算已耗时和剩余等待时间
-                elapsed = datetime.now() - t0
+                elapsed = datetime.now(tz=timezone.utc) - t0
                 remaining = max(timedelta(seconds=interval) - elapsed, timedelta(0))
                 sleep_seconds = remaining.total_seconds()
                 # 计算下次检查时间并格式化
-                next_check_utc = datetime.now(timezone.utc) + remaining
+                next_check_utc = datetime.now(timezone.utc) + remaining + timedelta(seconds=randint(-5, 5))  # Add a random jitter of up to 5 seconds
                 next_check_str = NotifyConfig.format_dt(dt=next_check_utc, tz=self._config.timezone)
                 # 打印信息并等待
                 print(f"🕒 Waiting {sleep_seconds:.2f}s... Next check at {next_check_str}")
+                # Save the check time to file
+                self.check_time_utc = t0
+                self.save_check_time()
+                # sleep
                 sleep(sleep_seconds)
                 self.check_config_and_load()
         except KeyboardInterrupt:
@@ -227,13 +246,19 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-c", "--config", required=False, help="Path to config YAML file", default='./config.yaml')
+    parser.add_argument("-c", "--config", required=False, help="Path to config YAML file", default="./config.yaml")
+    parser.add_argument("-d", "--cache-dir", required=False, help="Path to cache dir", default="/tmp/rss_cache")
     parser.add_argument("-i", "--interval", type=int, required=False, help="Polling interval in seconds", default=None)
     args = parser.parse_args()
 
     interval_env = os.getenv("RSS_INTERVAL")
     interval_sec = args.interval if args.interval is not None else int(interval_env) if interval_env else 60
 
-    app = App(cfg_file=args.config)
+    cache_dir_env = os.getenv("RSS_CACHE_DIR")
+    cache_dir = args.cache_dir if args.cache_dir else cache_dir_env if cache_dir_env else "/tmp/rss_cache"
+    if not Path(cache_dir).exists():
+        Path(cache_dir).mkdir(parents=True, exist_ok=True)
+
+    app = App(cfg_file=args.config, cache_dir=cache_dir)
     app.log(f"Fetch RSS evey {interval_sec} second")
     app.run(interval=interval_sec)

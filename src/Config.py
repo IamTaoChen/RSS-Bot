@@ -22,19 +22,19 @@ class Config(_Config):
 
     @classmethod
     def load_from_dict(cls, dict_data: dict) -> "Config":
-        if 'ai' in dict_data:
-            ai_config = AiConfig.load_from_dict(dict_data['ai'])
+        if "ai" in dict_data:
+            ai_config = AiConfig.load_from_dict(dict_data["ai"])
         else:
             raise Exception("Cann't find AI config")
         rss_dict: dict = {}
         rss_notify: dict = {}
         rss_enable: dict = {}
-        if 'rss' in dict_data:
-            for rss in dict_data['rss']:
-                notify = rss.pop('notify')
+        if "rss" in dict_data:
+            for rss in dict_data["rss"]:
+                notify = rss.pop("notify")
                 notify = list(set(notify))
                 try:
-                    enable = rss.pop('enable')
+                    enable = rss.pop("enable")
                 except:
                     enable = True
                 rss_config: RssConfig = RssConfig.load_from_dict(rss)
@@ -44,17 +44,15 @@ class Config(_Config):
         else:
             raise Exception("Cann't find RSS config")
         notify_dict: dict = {}
-        if 'notify' in dict_data:
-            for notify in dict_data['notify']:
-                notify_type: str = notify.pop('type').lower()
-                if notify_type == 'matrix':
-                    notify_dict[notify['name']] = MatrixConfig.load_from_dict(notify)
-        timezone: tzinfo = None
-        if 'timezone' in dict_data:
-            try:
-                timezone = ZoneInfo(dict_data['timezone'])
-            except:
-                pass
+        if "notify" in dict_data:
+            for notify in dict_data["notify"]:
+                notify_type: str = notify.pop("type").lower()
+                if notify_type == "matrix":
+                    notify_dict[notify["name"]] = MatrixConfig.load_from_dict(notify)
+        try:
+            timezone = ZoneInfo(dict_data.get("timezone", None))
+        except:
+            timezone: tzinfo = None
         return cls(
             ai=ai_config,
             rss=rss_dict,
