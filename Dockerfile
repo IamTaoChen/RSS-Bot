@@ -10,6 +10,7 @@ COPY ./src ./src
 COPY main.py .
 COPY config_example.yaml ./config.yaml
 
+USER rss
 ENV PYTHONUNBUFFERED=1
 
 ENTRYPOINT [ "python", "main.py" ]
