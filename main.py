@@ -33,7 +33,7 @@ class App:
     }
     color_reset = "\033[0m"
 
-    def __init__(self, cfg_file: str, cache_dir: str = "./cache", log_level: str = "INFO", log_file: str = None):
+    def __init__(self, cfg_file: str, cache_dir: str = "./cache"):
         self._stop_event = threading.Event()
         signal.signal(signal.SIGTERM, self.signal_handler)
         signal.signal(signal.SIGINT, self.signal_handler)
@@ -52,18 +52,11 @@ class App:
     def cfg_file(self) -> str:
         return self._cfg_file
 
-    def log(self, msg: str, level: str | LogLevel = LogLevel.INFO) -> None:
+    def log(self, msg: str | int, level: str | LogLevel = LogLevel.INFO, is_spliter: bool = False) -> None:
         # Convert to LogLevel
-        try:
-            if isinstance(level, str):
-                level = LogLevel[level.upper()]
-        except KeyError:
-            print(f"[WARN] Unknown log level: {level}, fallback to INFO")
-            level = LogLevel.INFO
-
+        level = LogLevel.from_string(level)
         log_cfg = self._config.log_cfg
         current_level = log_cfg.level
-
         # Skip if below log threshold
         if level.value < current_level.value:
             return
@@ -71,12 +64,16 @@ class App:
         # Format time
         tz = self._config.timezone or timezone.utc
         now = datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S %Z")
-        formatted_msg = f"[{now}] [{level.name}] {msg}"
+        formatted_msg = f"[{now}] [{level.name:<7}] {msg}"
 
         # Print to console
         if log_cfg.to_console or level == LogLevel.ERROR or level == LogLevel.SUCCESS:
-            color = self.color_map.get(level, "")
-            print(f"{color}{formatted_msg}\033[0m")
+            if is_spliter:
+                self.print_split(order=msg)
+                return
+            else:
+                color = self.color_map.get(level, "")
+                print(f"{color}{formatted_msg}\033[0m")
 
         # Write to file
         if log_cfg.file.is_dir():
@@ -136,12 +133,12 @@ class App:
         print(symbol * size)
 
     def _init_rss_(self) -> None:
-        self.log(f"Initializing RSS...")
-        self.log(f"Loading AI agent...")
+        self.log("Initializing RSS...")
+        self.log("Loading AI agent...")
         ai_agent = AiAgent(ai_config=self._config.ai)
         new_rss_dict: dict[str, Rss] = {}
         for rss_name, rss_config in self._config.rss.items():
-            self.print_split(order=3)
+            self.log(msg=3, is_spliter=True)
             self.log(f"Initializing RSS feed: {rss_name} with the type {rss_config.type}")
             new_rss = create_rss(rss_config=rss_config, ai_agent=ai_agent, translate_to="Chinese", timeout=10)
             rss_main = self.rss.get(rss_name, None)
@@ -172,7 +169,7 @@ class App:
                 msg = f"RSS feed {rss_name} initialized with {len(rss_main.notifies)} notify(s) and last fetch time {NotifyConfig.format_dt(dt=rss_main.last, tz=self._config.timezone)}"
                 self.log(msg, level="SUCCESS")
         self.rss = new_rss_dict
-        self.print_split(order=3)
+        self.log(msg=3, is_spliter=True)
         enable_names = [rss_name for rss_name, rss in self.rss.items() if rss.enable]
         diable_names = [rss_name for rss_name, rss in self.rss.items() if not rss.enable]
         print("📰 RSS feeds will be fetched:")
@@ -180,21 +177,20 @@ class App:
             print(f"  - ✅ \033[32mEnabled\033[0m: {', '.join(enable_names)}")
         if len(diable_names) > 0:
             print(f"  - ❌ \033[31mDisabled\033[0m: {', '.join(diable_names)}")
-        self.print_split(order=3)
-        self.log(f"All RSS feeds initialized successfully.", level="SUCCESS")
+        self.log(msg=3, is_spliter=True)
+        self.log("All RSS feeds initialized successfully.", level="SUCCESS")
 
     def make_error_msg(self, rss_name: str, url: str, error: Exception) -> Msg:
         return Msg(title=f"❗ Error: {rss_name}", description=f"Something went wrong while processing the RSS feed.\n\nURL: {url}", link=url, pub_date=datetime.now(timezone.utc), msg_type="error", contents={"Exception": str(error), "RSS Name": rss_name})
 
     def run(self, interval: int = 60):
-        self.print_split(order=0)
+        self.log(msg=0, is_spliter=True)
         try:
             while not self._stop_event.is_set():
                 t0 = datetime.now(tz=timezone.utc)
-                self.print_split(order=1)
+                self.log(msg=1, is_spliter=True)
                 for rss_name, rss_combine in self.rss.items():
-                    self.print_split(order=2)
-
+                    self.log(msg=2, is_spliter=True)
                     if not getattr(rss_combine, "enable", True):
                         continue
                     date_str = NotifyConfig.format_dt(dt=rss_combine.last, tz=self._config.timezone)
@@ -225,8 +221,8 @@ class App:
                     except Exception as e:
                         self.log(f"❗ Unknown error while handling {rss_name}: {e}", level="ERROR")
                     self.send()
-                    self.print_split(order=2)
-                self.print_split(order=1)
+                    self.log(msg=2, is_spliter=True)
+                self.log(msg=1, is_spliter=True)
                 # 计算已耗时和剩余等待时间
                 elapsed = datetime.now(tz=timezone.utc) - t0
                 remaining = max(timedelta(seconds=interval) - elapsed, timedelta(0))
@@ -275,12 +271,12 @@ class App:
         self._cfg_file_last_mtime = _cfg_file_last_mtime
         tmp_config: Config = Config.load_from_yaml(cfg_file=self.cfg_file)
         if self._config != tmp_config:
-            self.print_split(order=4)
+            self.log(msg=4, is_spliter=True)
             self.log("Config file changed, reloading...", level="WARNING")
             self._config = tmp_config
             self._init_rss_()
             self.log("Config file reloaded successfully.", level="SUCCESS")
-            self.print_split(order=0)
+            self.log(msg=0, is_spliter=True)
 
 
 if __name__ == "__main__":

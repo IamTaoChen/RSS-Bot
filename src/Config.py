@@ -25,6 +25,8 @@ class LogLevel(Enum):
 
     @classmethod
     def from_string(cls, level_str: str) -> LogLevel:
+        if isinstance(level_str, LogLevel):
+            return level_str
         try:
             return cls[level_str.upper()]
         except KeyError:
@@ -74,7 +76,8 @@ class Config(_Config):
                 notify = list(set(notify))
                 try:
                     enable = rss.pop("enable")
-                except:
+                except Exception as e:
+                    print(f"⚠️ RSS config missing 'enable' field, defaulting to True: {e}")
                     enable = True
                 rss_config: RssConfig = RssConfig.load_from_dict(rss)
                 rss_dict[rss_config.name] = rss_config
@@ -90,7 +93,8 @@ class Config(_Config):
                     notify_dict[notify["name"]] = MatrixConfig.load_from_dict(notify)
         try:
             timezone = ZoneInfo(dict_data.get("timezone", None))
-        except:
+        except Exception as e:
+            print(f"⚠️ Invalid timezone in config, defaulting to None: {e}")
             timezone: tzinfo = None
         return cls(log_cfg=log_cfg, ai=ai_config, rss=rss_dict, rss_notify=rss_notify, rss_enable=rss_enable, notifies=notify_dict, timezone=timezone)
 
