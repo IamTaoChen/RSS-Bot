@@ -14,7 +14,7 @@ from enum import Enum
 class LogLevel(Enum):
     SUCCESS = (100, "✅", "\033[32m")
     DEBUG = (10, "🐛", "\033[90m")
-    INFO = (20, "ℹ️", "\033[34m")
+    INFO = (20, "ℹ️", "\033[0m")
     WARNING = (30, "⚠️", "\033[33m")
     ERROR = (40, "❌", "\033[31m")
 
