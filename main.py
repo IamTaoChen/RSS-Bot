@@ -53,7 +53,7 @@ class App:
         if level.value < current_level.value and not log_anyway:
             return
         if is_spliter:
-            if log_cfg.to_console:
+            if log_cfg.to_console or log_anyway:
                 self.print_split(order=msg if isinstance(msg, int) else 0)
             return
         # Format time
@@ -195,7 +195,7 @@ class App:
         diable_names = [rss_name for rss_name, rss in self.rss.items() if not rss.enable]
         self.log("📰\tRSS feeds will be fetched:", no_emoji=True, log_anyway=True)
         if len(enable_names) > 0:
-            self.log(f"\t  - ✅ \033[32mEnabled\033[0m: {', '.join(enable_names)}", no_emoji=True, log_anyway=True)
+            self.log(f"\t  - ✅ \033[32mEnabled \033[0m: {', '.join(enable_names)}", no_emoji=True, log_anyway=True)
         if len(diable_names) > 0:
             self.log(f"\t  - ❌ \033[31mDisabled\033[0m: {', '.join(diable_names)}", no_emoji=True, log_anyway=True)
         self.log(msg=3, is_spliter=True)
@@ -205,7 +205,7 @@ class App:
         return Msg(title=f"Error: {rss_name}", description=f"Something went wrong while processing the RSS feed.\n\nURL: {url}", link=url, pub_date=datetime.now(timezone.utc), msg_type="error", contents={"Exception": str(error), "RSS Name": rss_name})
 
     def run(self, interval: int = 60):
-        self.log(msg=0, is_spliter=True)
+        self.log(msg=0, is_spliter=True, log_anyway=True)
         self.log(f"Starting RSS fetcher every {interval} seconds", log_anyway=True)
         try:
             while not self._stop_event.is_set():
@@ -295,12 +295,12 @@ class App:
         self._cfg_file_last_mtime = _cfg_file_last_mtime
         tmp_config: Config = Config.load_from_yaml(cfg_file=self.cfg_file)
         if self._config != tmp_config:
-            self.log(msg=4, is_spliter=True)
+            self.log(msg=4, is_spliter=True, log_anyway=True)
             self.log("Config file changed, reloading...", level=LogLevel.WARNING)
             self._config = tmp_config
             self._init_rss_()
             self.log("Config file reloaded successfully.", level=LogLevel.SUCCESS)
-            self.log(msg=0, is_spliter=True)
+            self.log(msg=0, is_spliter=True, log_anyway=True)
 
 
 if __name__ == "__main__":
@@ -324,8 +324,8 @@ if __name__ == "__main__":
 
     log_level_str = os.getenv("RSS_LOG_LEVEL") or args.log_level
     log_level = LogLevel.from_string(log_level_str) if log_level_str else None
-    
-    cfg_file=args.config
+
+    cfg_file = args.config
     print(f"{LogLevel.INFO.emoji}  Using config file: {cfg_file}")
     app = App(cfg_file=cfg_file, cache_dir=cache_dir, log_level=log_level)
     app.run(interval=interval_sec)
