@@ -148,6 +148,7 @@ class App:
         self.print_split(order=0)
         try:
             while True:
+                fetch_success: list[bool]= []
                 t0 = datetime.now(tz=timezone.utc)
                 self.print_split(order=1)
                 for rss_name, rss_combine in self.rss.items():
@@ -172,7 +173,7 @@ class App:
                             self.log(f"✅ {rss_name} is back online after {rss_combine.error_count} failed attempts.")
                             rss_combine.error_count = 0
                             rss_combine.msgs_buffer = [msg for msg in rss_combine.msgs_buffer if msg.msg_type != "error"]
-
+                        fetch_success.append(True)
                     except RssFetchErr as e:
                         rss_combine.error_count += 1
                         self.log(f"❗ Error while handling {rss_name} (fail count: {rss_combine.error_count}): {e}", level="ERROR")
@@ -180,9 +181,10 @@ class App:
                             self.log("📬 Notify user about fetch failure...")
                             msg = self.make_error_msg(rss_name, rss_combine.rss.config.url, e)
                             rss_combine.msgs_buffer.append(msg)
-
+                        fetch_success.append(False)
                     except Exception as e:
                         self.log(f"❗ Unknown error while handling {rss_name}: {e}", level="ERROR")
+                        fetch_success.append(False)
                     self.send()
                     self.print_split(order=2)
                 self.print_split(order=1)
@@ -196,8 +198,9 @@ class App:
                 # 打印信息并等待
                 print(f"🕒 Waiting {sleep_seconds:.2f}s... Next check at {next_check_str}")
                 # Save the check time to file
-                self.check_time_utc = t0
-                self.save_check_time()
+                if all(fetch_success):
+                    self.check_time_utc = t0
+                    self.save_check_time()
                 # sleep
                 sleep(sleep_seconds)
                 self.check_config_and_load()
