@@ -125,15 +125,16 @@ class App:
             else:
                 self.log(f"Found {len(notifies)} notify(s) for {rss_name}: {', '.join(notifies_names)}")
             rss_main.notifies = notifies
+            rss_main.last = self.fetch_time_utc.get(rss_name, rss_main.last)
             # refill the enable
             enable = self._config.rss_enable[rss_name]
+            rss_main.enable = enable
+            new_rss_dict[rss_name] = rss_main
             if not enable:
                 self.log(f"❗ RSS feed {rss_name} is disabled, it will not be fetched.", level="WARNING")
-            rss_main.enable = enable
-            rss_main.last = self.fetch_time_utc.get(rss_name, rss_main.last)
-            new_rss_dict[rss_name] = rss_main
-            msg = f"RSS feed {rss_name} initialized with {len(rss_main.notifies)} notify(s) and last fetch time {NotifyConfig.format_dt(dt=rss_main.last, tz=self._config.timezone)}"
-            self.log(msg, level="SUCCESS")
+            else:
+                msg = f"RSS feed {rss_name} initialized with {len(rss_main.notifies)} notify(s) and last fetch time {NotifyConfig.format_dt(dt=rss_main.last, tz=self._config.timezone)}"
+                self.log(msg, level="SUCCESS")
         self.rss = new_rss_dict
         self.print_split(order=3)
         enable_names = [rss_name for rss_name, rss in self.rss.items() if rss.enable]
