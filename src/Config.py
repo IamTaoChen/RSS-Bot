@@ -38,10 +38,12 @@ class Config(_Config):
     rss_from_now: dict[str, bool] = field(default_factory=dict)
     notifies: dict[str, NotifyConfig] = field(default_factory=dict)
     timezone: tzinfo = field(default=None)
+    other_tz: dict[str, tzinfo] = field(default_factory=dict)
 
     @classmethod
     def load_from_dict(cls, dict_data: dict) -> "Config":
         log_cfg: LogCfg = LogCfg.load_from_dict(dict_data.get("log", None))
+        other_tz: dict[str, tzinfo] = cls.tz_dict(dict_data.get("other_tz", None))
         if "ai" in dict_data:
             ai_config = AiConfig.load_from_dict(dict_data["ai"])
         else:
@@ -76,13 +78,16 @@ class Config(_Config):
             for notify in dict_data["notify"]:
                 notify_type: str = notify.pop("type").lower()
                 if notify_type == "matrix":
-                    notify_dict[notify["name"]] = MatrixConfig.load_from_dict(notify)
+                    notify_ins: MatrixConfig = MatrixConfig.load_from_dict(notify)
+                    notify_tz = cls.tz_dict(notify.get("tz", None))
+                    notify_ins.tz = {**other_tz, **notify_tz}
+                    notify_dict[notify["name"]] = notify_ins
         try:
-            timezone = ZoneInfo(dict_data.get("timezone", None))
-        except Exception as e:
-            print(f"⚠️ Invalid timezone in config, defaulting to None: {e}")
+            timezone = cls.format_tz(dict_data.get("timezone", None))
+        except TypeError as e:
+            print(f"⚠️ : {e}")
             timezone: tzinfo = None
-        return cls(log_cfg=log_cfg, ai=ai_config, rss=rss_dict, rss_notify=rss_notify, rss_enable=rss_enable, rss_from_now=rss_from_now, notifies=notify_dict, timezone=timezone)
+        return cls(log_cfg=log_cfg, ai=ai_config, rss=rss_dict, rss_notify=rss_notify, rss_enable=rss_enable, rss_from_now=rss_from_now, notifies=notify_dict, timezone=timezone, other_tz=other_tz)
 
     def get_notfies_by_names(self, names: list[str] | str) -> list[NotifyConfig]:
         """
@@ -92,3 +97,33 @@ class Config(_Config):
         if isinstance(names, str):
             names = [names]
         return [self.notifies[name] for name in names if name in self.notifies]
+
+    @classmethod
+    def format_tz(cls, tz: tzinfo | str | None) -> tzinfo:
+        """
+        Format the timezone input to a tzinfo object.
+        If the input is a string, it will be converted to ZoneInfo.
+        If None, it will return None.
+        """
+        if isinstance(tz, str):
+            try:
+                return ZoneInfo(tz)
+            except Exception as e:
+                print(f"⚠️ Invalid timezone string '{tz}': {e}")
+                return None
+        elif isinstance(tz, ZoneInfo):
+            return tz
+        elif tz is None:
+            return None
+        else:
+            raise TypeError("Timezone must be a str or ZoneInfo instance.")
+
+    @classmethod
+    def tz_dict(cls, tz: dict[str, str | tzinfo] | None) -> dict[str, tzinfo]:
+        """
+        Convert a dictionary of timezones to a dictionary of tzinfo objects.
+        If the input is None, it will return an empty dictionary.
+        """
+        if not tz:
+            return {}
+        return {key: cls.format_tz(value) for key, value in tz.items() if value is not None}
