@@ -11,16 +11,6 @@ from random import randint
 import json
 import signal
 import threading
-from enum import Enum
-
-
-class Emoji(Enum):
-    INFO = "ℹ️"
-    WARNING = "⚠️"
-    ERROR = "❗"
-    SUCCESS = "✅"
-    DEBUG = "🐛"
-    FAILED = "❌"
 
 
 @dataclass
@@ -34,15 +24,6 @@ class RssMain:
 
 
 class App:
-    color_map = {
-        LogLevel.INFO: "\033[34m",
-        LogLevel.WARNING: "\033[33m",
-        LogLevel.ERROR: "\033[31m",
-        LogLevel.DEBUG: "\033[90m",
-        LogLevel.SUCCESS: "\033[32m",
-    }
-    color_reset = "\033[0m"
-
     def __init__(self, cfg_file: str, cache_dir: str = "./cache"):
         self._stop_event = threading.Event()
         signal.signal(signal.SIGTERM, self.signal_handler)
@@ -62,7 +43,7 @@ class App:
     def cfg_file(self) -> str:
         return self._cfg_file
 
-    def log(self, msg: str | int, level: str | LogLevel = LogLevel.INFO, is_spliter: bool = False, force_only_to_console: bool = False) -> None:
+    def log(self, msg: str | int, level: str | LogLevel = LogLevel.INFO, no_emoji: bool = False, is_spliter: bool = False, force_only_to_console: bool = False) -> None:
         # Convert to LogLevel
         level = LogLevel.from_string(level)
         log_cfg = self._config.log_cfg
@@ -70,23 +51,17 @@ class App:
         # Skip if below log threshold
         if level.value < current_level.value:
             return
-
+        if is_spliter:
+            self.print_split(order=msg if isinstance(msg, int) else 0)
+            return
         # Format time
         tz = self._config.timezone or timezone.utc
         now = datetime.now(tz)
-        formatted_msg = f"[{now.strftime('%Y-%m-%d %H:%M:%S %Z')}] [{level.name:<7}] {msg}"
+        formatted_msg = level.warp(message=msg, now=now, no_emoji=no_emoji)
 
         # Print to console
         if log_cfg.to_console or level in (LogLevel.ERROR, LogLevel.SUCCESS) or force_only_to_console:
-            if is_spliter:
-                self.print_split(order=msg if isinstance(msg, int) else 0)
-                return
-            else:
-                color = self.color_map.get(level, "")
-                print(f"{color}{formatted_msg}\033[0m")
-
-        if is_spliter:
-            return
+            print(f"{level.to_color()}{formatted_msg}{level.color_reset}")
         if log_cfg.file is None or force_only_to_console:
             return
         # Write to file
@@ -96,7 +71,7 @@ class App:
             with open(filename, "a", encoding="utf-8") as f:
                 f.write(formatted_msg + "\n")
         except Exception as e:
-            self.log(f"{Emoji.ERROR.value} Failed to write log to file {filename}: {e}", level=LogLevel.ERROR, force_only_to_console=True)
+            self.log(f"Failed to write log to file {filename}: {e}", level=LogLevel.ERROR, force_only_to_console=True)
 
     def prepare_logfile(self, now: datetime | None = None) -> Path:
         log_file = self._config.log_cfg.file
@@ -118,7 +93,7 @@ class App:
                     try:
                         filename.rename(rotated_name)
                     except Exception as e:
-                        self.log(f"{Emoji.ERROR.value} Failed to rotate log file {filename} to {rotated_name}: {e}", level=LogLevel.ERROR, force_only_to_console=True)
+                        self.log(f"Failed to rotate log file {filename} to {rotated_name}: {e}", level=LogLevel.ERROR, force_only_to_console=True)
         return filename
 
     @property
@@ -126,7 +101,7 @@ class App:
         return self.cache_dir / "fetch_time.json"
 
     def signal_handler(self, signum, frame):
-        self.log(f"{Emoji.WARNING.value} Received signal {signum}, shutting down gracefully...", level="WARNING")
+        self.log(f"Received signal {signum}, shutting down gracefully...", level="WARNING")
         self.save_fetch_time()
         self._stop_event.set()
 
@@ -149,7 +124,7 @@ class App:
                     self.fetch_time_utc[rss_name] = datetime.fromisoformat(last_time_str)
                 self.log(f"Loaded last check time from {self.fetch_time_file}", level="DEBUG")
             except json.JSONDecodeError as e:
-                self.log(f"{Emoji.ERROR.value} Failed to load fetch time JSON: {e}", level="ERROR")
+                self.log(f"Failed to load fetch time JSON: {e}", level="ERROR")
 
     def print_split(self, order: int = 0):
         symbol = "="
@@ -186,7 +161,7 @@ class App:
             notifies = self._config.get_notfies_by_names(self._config.rss_notify[rss_name])
             notifies_names = [notify.name for notify in notifies]
             if len(notifies) <= 0:
-                self.log(f"{Emoji.ERROR.value} No notify found for {rss_name}, please check the config file.", level="Warning")
+                self.log(f"No notify found for {rss_name}, please check the config file.", level="Warning")
             else:
                 self.log(f"Found {len(notifies)} notify(s) for {rss_name}: {', '.join(notifies_names)}")
             rss_main.notifies = notifies
@@ -196,7 +171,7 @@ class App:
             rss_main.enable = enable
             new_rss_dict[rss_name] = rss_main
             if not enable:
-                self.log(f"{Emoji.ERROR.value} RSS feed {rss_name} is disabled, it will not be fetched.", level="WARNING")
+                self.log(f"RSS feed {rss_name} is disabled, it will not be fetched.", level="WARNING")
             else:
                 msg = f"RSS feed {rss_name} initialized with {len(rss_main.notifies)} notify(s) and last fetch time {NotifyConfig.format_dt(dt=rss_main.last, tz=self._config.timezone)}"
                 self.log(msg, level="SUCCESS")
@@ -213,7 +188,7 @@ class App:
         self.log("All RSS feeds initialized successfully.", level="SUCCESS")
 
     def make_error_msg(self, rss_name: str, url: str, error: Exception) -> Msg:
-        return Msg(title=f"{Emoji.ERROR.value} Error: {rss_name}", description=f"Something went wrong while processing the RSS feed.\n\nURL: {url}", link=url, pub_date=datetime.now(timezone.utc), msg_type="error", contents={"Exception": str(error), "RSS Name": rss_name})
+        return Msg(title=f"Error: {rss_name}", description=f"Something went wrong while processing the RSS feed.\n\nURL: {url}", link=url, pub_date=datetime.now(timezone.utc), msg_type="error", contents={"Exception": str(error), "RSS Name": rss_name})
 
     def run(self, interval: int = 60):
         self.log(msg=0, is_spliter=True)
@@ -233,25 +208,25 @@ class App:
                         new_rss_items = rss_combine.rss.get_items_since(rss_combine.last)
                         self.log(f"📎 Found {len(new_rss_items)} new item(s)")
                         if new_rss_items:
-                            self.log("🧠 Summarizing with AI agent...")
+                            self.log("🧠 Summarizing with AI agent...", no_emoji=True)
                             self.rss[rss_name].last = get_newest_time(new_rss_items)
                             msgs = rss_combine.rss.summarize(items=new_rss_items, verbose=True)
                             rss_combine.msgs_buffer.extend(msgs)
 
                         if rss_combine.error_count > 0:
-                            self.log(f"✅ {rss_name} is back online after {rss_combine.error_count} failed attempts.")
+                            self.log(f"✅ {rss_name} is back online after {rss_combine.error_count} failed attempts.", no_emoji=True)
                             rss_combine.error_count = 0
                             rss_combine.msgs_buffer = [msg for msg in rss_combine.msgs_buffer if msg.msg_type != "error"]
                         self.fetch_time_utc[rss_name] = rss_combine.last
                     except RssFetchErr as e:
                         rss_combine.error_count += 1
-                        self.log(f"{Emoji.ERROR.value} Error while handling {rss_name} (fail count: {rss_combine.error_count}): {e}", level="ERROR")
+                        self.log(f"Error while handling {rss_name} (fail count: {rss_combine.error_count}): {e}", level="ERROR")
                         if rss_combine.error_count == 3:
-                            self.log("📬 Notify user about fetch failure...")
+                            self.log("📬 Notify user about fetch failure...", no_emoji=True)
                             msg = self.make_error_msg(rss_name, rss_combine.rss.config.url, e)
                             rss_combine.msgs_buffer.append(msg)
                     except Exception as e:
-                        self.log(f"{Emoji.ERROR.value} Unknown error while handling {rss_name}: {e}", level="ERROR")
+                        self.log(f"Unknown error while handling {rss_name}: {e}", level="ERROR")
                     self.send()
                     self.log(msg=2, is_spliter=True)
                 self.log(msg=1, is_spliter=True)
@@ -270,26 +245,26 @@ class App:
                 self._stop_event.wait(timeout=sleep_seconds)
                 self.check_config_and_load()
         except KeyboardInterrupt:
-            self.log("🛑 Exiting...")
+            self.log("🛑 Exiting...", no_emoji=True)
         except Exception as e:
-            self.log(f"{Emoji.ERROR.value} Unknown error: {e}", level="ERROR")
+            self.log(f"Unknown error: {e}", level="ERROR")
 
     def send(self) -> None:
         for rss_name, rss_combine in self.rss.items():
             if not rss_combine.msgs_buffer:
                 continue
 
-            self.log(f"📤 Sending {len(rss_combine.msgs_buffer)} message(s) for {rss_name}...")
+            self.log(f"📤 Sending {len(rss_combine.msgs_buffer)} message(s) for {rss_name}...", no_emoji=True)
 
             failed_ids = set()
             for notify in rss_combine.notifies:
-                self.log(f"🔔 Sending {len(rss_combine.msgs_buffer)} message(s) to {notify.name}...")
+                self.log(f"🔔 Sending {len(rss_combine.msgs_buffer)} message(s) to {notify.name}...", no_emoji=True)
                 failed = notify.send(msgs=rss_combine.msgs_buffer, local_tz=self._config.timezone)
                 failed_ids.update(id(msg) for msg in failed)
 
             rss_combine.msgs_buffer = [msg for msg in rss_combine.msgs_buffer if id(msg) in failed_ids]
             if rss_combine.msgs_buffer:
-                self.log(f"{Emoji.WARNING.value} {rss_name}: {len(rss_combine.msgs_buffer)} message(s) failed to send and will be retried.", level="WARNING")
+                self.log(f"{rss_name}: {len(rss_combine.msgs_buffer)} message(s) failed to send and will be retried.", level="WARNING")
 
     def check_config_and_load(self) -> None:
         """
