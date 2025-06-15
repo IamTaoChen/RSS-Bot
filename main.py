@@ -74,7 +74,7 @@ class App:
         formatted_msg = f"[{now}] [{level.name}] {msg}"
 
         # Print to console
-        if log_cfg.to_console:
+        if log_cfg.to_console or level == LogLevel.ERROR or level == LogLevel.SUCCESS:
             color = self.color_map.get(level, "")
             print(f"{color}{formatted_msg}\033[0m")
 
@@ -304,7 +304,7 @@ if __name__ == "__main__":
 
     log_level_str = os.getenv("RSS_LOG_LEVEL") or args.log_level
     log_level = LogLevel.from_string(log_level_str) if log_level_str else None
-    
+
     app = App(cfg_file=args.config, cache_dir=cache_dir)
     if log_level:
         app._config.log_cfg.level = log_level
