@@ -60,10 +60,10 @@ class LogLevel(Enum):
         """
         Wraps the message with the log level's color and emoji.
         """
-        message = f"{self.emoji} {message}" if not no_emoji else message
+        emoji = "" if no_emoji else f"{self.emoji} "
         now = now or datetime.now()
         timestamp = now.strftime("%Y-%m-%d %H:%M:%S %Z")
-        return f"{self.color}[{timestamp}] [{self.name:<7}] {message}{self.color_reset}".strip()
+        return f"{self.color}[{timestamp}] [{self.name:<7}] {emoji}{message}{self.color_reset}"
 
 
 @dataclass
