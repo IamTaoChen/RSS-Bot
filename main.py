@@ -189,9 +189,9 @@ class App:
                 # 计算已耗时和剩余等待时间
                 elapsed = datetime.now(tz=timezone.utc) - t0
                 remaining = max(timedelta(seconds=interval) - elapsed, timedelta(0))
-                sleep_seconds = remaining.total_seconds()
+                sleep_seconds = remaining.total_seconds() + timedelta(seconds=randint(-5, 5))  # Add a random jitter of up to 5 seconds
                 # 计算下次检查时间并格式化
-                next_check_utc = datetime.now(timezone.utc) + remaining + timedelta(seconds=randint(-5, 5))  # Add a random jitter of up to 5 seconds
+                next_check_utc = datetime.now(timezone.utc) + remaining 
                 next_check_str = NotifyConfig.format_dt(dt=next_check_utc, tz=self._config.timezone)
                 # 打印信息并等待
                 print(f"🕒 Waiting {sleep_seconds:.2f}s... Next check at {next_check_str}")
