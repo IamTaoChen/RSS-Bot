@@ -144,7 +144,6 @@ class App:
         print(symbol * size)
 
     def _init_rss_(self) -> None:
-        print("init")
         self.log("Initializing RSS...", log_anyway=True)
         self.log("Loading AI agent...", log_anyway=True)
         ai_agent = AiAgent(ai_config=self._config.ai)
@@ -186,9 +185,9 @@ class App:
         diable_names = [rss_name for rss_name, rss in self.rss.items() if not rss.enable]
         self.log("📰 RSS feeds will be fetched:", no_emoji=True, log_anyway=True)
         if len(enable_names) > 0:
-            self.log(f"  - ✅ \033[32mEnabled\033[0m: {', '.join(enable_names)}", no_emoji=True, log_anyway=True)
+            self.log(f"    - ✅ \033[32mEnabled\033[0m: {', '.join(enable_names)}", no_emoji=True, log_anyway=True)
         if len(diable_names) > 0:
-            self.log(f"  - ❌ \033[31mDisabled\033[0m: {', '.join(diable_names)}", no_emoji=True, log_anyway=True)
+            self.log(f"    - ❌ \033[31mDisabled\033[0m: {', '.join(diable_names)}", no_emoji=True, log_anyway=True)
         self.log(msg=3, is_spliter=True)
         self.log("All RSS feeds initialized successfully.", level="SUCCESS")
 
