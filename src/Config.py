@@ -35,6 +35,7 @@ class Config(_Config):
     rss: dict[str, RssConfig] = field(default_factory=dict)
     rss_notify: dict[str, list[str]] = field(default_factory=dict)
     rss_enable: dict[str, list[bool]] = field(default_factory=dict)
+    rss_from_now: dict[str, bool] = field(default_factory=dict)
     notifies: dict[str, NotifyConfig] = field(default_factory=dict)
     timezone: tzinfo = field(default=None)
 
@@ -48,6 +49,7 @@ class Config(_Config):
         rss_dict: dict = {}
         rss_notify: dict = {}
         rss_enable: dict = {}
+        rss_from_now: dict = {}
         if "rss" in dict_data:
             for rss in dict_data["rss"]:
                 notify = rss.pop("notify")
@@ -57,10 +59,16 @@ class Config(_Config):
                 except Exception as e:
                     print(f"⚠️ RSS config missing 'enable' field, defaulting to True: {e}")
                     enable = True
+                try:
+                    from_now = rss.pop("from_now")
+                except Exception as e:
+                    print(f"⚠️ RSS config missing 'from_now' field, defaulting to True: {e}")
+                    from_now = True
                 rss_config: RssConfig = RssConfig.load_from_dict(rss)
                 rss_dict[rss_config.name] = rss_config
                 rss_notify[rss_config.name] = notify
                 rss_enable[rss_config.name] = enable
+                rss_from_now[rss_config.name] = from_now
         else:
             raise Exception("Cann't find RSS config")
         notify_dict: dict = {}
@@ -74,7 +82,7 @@ class Config(_Config):
         except Exception as e:
             print(f"⚠️ Invalid timezone in config, defaulting to None: {e}")
             timezone: tzinfo = None
-        return cls(log_cfg=log_cfg, ai=ai_config, rss=rss_dict, rss_notify=rss_notify, rss_enable=rss_enable, notifies=notify_dict, timezone=timezone)
+        return cls(log_cfg=log_cfg, ai=ai_config, rss=rss_dict, rss_notify=rss_notify, rss_enable=rss_enable, rss_from_now=rss_from_now, notifies=notify_dict, timezone=timezone)
 
     def get_notfies_by_names(self, names: list[str] | str) -> list[NotifyConfig]:
         """

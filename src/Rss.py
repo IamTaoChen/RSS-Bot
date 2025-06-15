@@ -61,18 +61,19 @@ class RssConfig(_Config):
             self.url = "https://" + self.url
 
 
-class Rss():
-
-    def __init__(self, config: RssConfig, ai_agent: AiAgent, translate_to: str = "Chinese", timeout: int = 60):
+class Rss:
+    def __init__(self, config: RssConfig, ai_agent: AiAgent, translate_to: str = "Chinese", timeout: int = 60, run_init: bool = True):
         self.config = config
         self._rss_items: list[RssItem] = []
         self._ai_agent: AiAgent = ai_agent
         self.translate_to: str = translate_to
         self.timeout: int = timeout
-        self._post_init_()
+        self._post_init_(run_init=run_init)
 
-    def _post_init_(self) -> None:
+    def _post_init_(self, run_init: bool = True) -> None:
         self._ai_agent.init()
+        if not run_init:
+            return
         try:
             self.fetch()
         except:
@@ -118,38 +119,29 @@ class Rss():
 
         for entry in feed.entries:
             # 1. title 清洗（去换行、压缩空格、限制长度）
-            raw_title = entry.get('title', '')
-            title = ' '.join(raw_title.split())[:500]
+            raw_title = entry.get("title", "")
+            title = " ".join(raw_title.split())[:500]
 
             # 2. content fallback
             content = None
-            if isinstance(entry.get('content'), list) and entry['content']:
-                content = entry['content'][0].get('value')
-            elif 'summary' in entry:
-                content = entry['summary']
+            if isinstance(entry.get("content"), list) and entry["content"]:
+                content = entry["content"][0].get("value")
+            elif "summary" in entry:
+                content = entry["summary"]
 
             # 3. description 清洗 + 提取图片
-            raw_description = entry.get('description') or entry.get('summary', '')
+            raw_description = entry.get("description") or entry.get("summary", "")
             # description_text, image_links = clean_html(raw_description)
 
             # 4. 时间字段处理
-            pub_struct = entry.get('published_parsed')
+            pub_struct = entry.get("published_parsed")
             pub_date = datetime.fromtimestamp(calendar.timegm(pub_struct), tz=timezone.utc) if pub_struct else None
 
             # 5. authors 处理
-            authors = [a.get('name', '') for a in entry.get('authors', [])] if 'authors' in entry else []
+            authors = [a.get("name", "") for a in entry.get("authors", [])] if "authors" in entry else []
 
             # 6. 构建对象
-            item = RssItem(
-                title=title,
-                link=entry.get('link', ''),
-                description=raw_description,
-                published=entry.get('published'),
-                pub_date=pub_date,
-                id=entry.get('id'),
-                authors=authors,
-                content=content
-            )
+            item = RssItem(title=title, link=entry.get("link", ""), description=raw_description, published=entry.get("published"), pub_date=pub_date, id=entry.get("id"), authors=authors, content=content)
             _rss_items.append(item)
         return _rss_items
 
@@ -161,7 +153,7 @@ class Rss():
         self._rss_items = items
         return items
 
-    def prompt(self, item: RssItem, translate_to: str = 'Chinese', custom_prompt: str = None) -> str:
+    def prompt(self, item: RssItem, translate_to: str = "Chinese", custom_prompt: str = None) -> str:
         """
         build prompt for AI agent to summarize the rss item
         :param item: RssItem object
@@ -197,13 +189,7 @@ class Rss():
         :return: flattened string
         """
         content = item.content or item.description
-        _str = (
-            "\n---\n"
-            f"Title: {item.title}\n"
-            f"Content: {content}\n"
-            f"Link: {item.link}\n"
-            "---"
-        )
+        _str = f"\n---\nTitle: {item.title}\nContent: {content}\nLink: {item.link}\n---"
         return _str
 
     def format_output(self, contents: str) -> str:
@@ -224,18 +210,19 @@ class Rss():
             items = [items]
         msgs: list[Msg] = []
         for item in items:
-            prompt_str = self.prompt(item=item, translate_to=self.translate_to,custom_prompt=self.config.prompts)
+            prompt_str = self.prompt(item=item, translate_to=self.translate_to, custom_prompt=self.config.prompts)
             if verbose:
                 print(f"Summarizing item: {item.title}")
             reply = self._ai_agent.act(prompt=prompt_str)
             format_reply = self.format_output(reply)
-            msg = Msg(title=item.title,
-                      authors=item.authors,
-                      pub_date=item.pub_date,
-                      description=item.description,
-                      contents=format_reply,
-                      link=item.link,
-                      )
+            msg = Msg(
+                title=item.title,
+                authors=item.authors,
+                pub_date=item.pub_date,
+                description=item.description,
+                contents=format_reply,
+                link=item.link,
+            )
             msgs.append(msg)
 
         return msgs

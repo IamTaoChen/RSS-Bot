@@ -97,13 +97,13 @@ class RssNitter(Rss):
     This class Inherits from the Rss class.
     """
 
-    def __init__(self, config: RssConfig, ai_agent: AiAgent, translate_to: str = "Chinese", timeout: int = 60):
+    def __init__(self, config: RssConfig, ai_agent: AiAgent, translate_to: str = "Chinese", timeout: int = 60, run_init: bool = True):
         self.url = config.url
         self.__url = self.url
         self.author = config.others.get("author", None)
         self.public_url = config.others.get("public_url", "https://x.com")
         self.__public_url = self.public_url
-        super().__init__(config=config, ai_agent=ai_agent, translate_to=translate_to, timeout=timeout)
+        super().__init__(config=config, ai_agent=ai_agent, translate_to=translate_to, timeout=timeout, run_init=run_init)
 
     @property
     def rss_url(self) -> str:

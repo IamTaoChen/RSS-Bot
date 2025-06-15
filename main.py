@@ -151,7 +151,9 @@ class App:
         for rss_name, rss_config in self._config.rss.items():
             self.log(msg=3, is_spliter=True)
             self.log(f"Initializing RSS feed: {rss_name} with the type {rss_config.type}")
-            new_rss = create_rss(rss_config=rss_config, ai_agent=ai_agent, translate_to="Chinese", timeout=10)
+            # refill the enable
+            enable = self._config.rss_enable[rss_name]
+            new_rss = create_rss(rss_config=rss_config, ai_agent=ai_agent, translate_to="Chinese", timeout=10, run_init=enable)
             rss_main = self.rss.get(rss_name, None)
             if not rss_main:
                 # if the rss is not initialized, create a new one
@@ -169,9 +171,16 @@ class App:
             else:
                 self.log(f"Found {len(notifies)} notify(s) for {rss_name}: {', '.join(notifies_names)}")
             rss_main.notifies = notifies
-            rss_main.last = self.fetch_time_utc.get(rss_name, rss_main.last)
-            # refill the enable
-            enable = self._config.rss_enable[rss_name]
+            if not self._config.rss_from_now.get(rss_name, True):
+                logged_last_time = self.fetch_time_utc.get(rss_name, None)
+                if logged_last_time is None:
+                    self.log(f"RSS feed {rss_name} has no last fetch time logged, will fetch from now.", level=LogLevel.WARNING)
+                    logged_last_time = rss_main.last
+                else:
+                    self.log(f"RSS feed {rss_name} will fetch from the last time which is logged at file, not from now.", level=LogLevel.INFO)
+                rss_main.last = logged_last_time
+            else:
+                self.log(f"RSS feed {rss_name} will fetch from now.", level=LogLevel.INFO)
             rss_main.enable = enable
             new_rss_dict[rss_name] = rss_main
             if not enable:
