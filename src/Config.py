@@ -63,7 +63,7 @@ class Config(_Config):
                     from_now = rss.pop("from_now")
                 except Exception as e:
                     print(f"⚠️ RSS config missing 'from_now' field, defaulting to True: {e}")
-                    from_now = True
+                    from_now = False
                 rss_config: RssConfig = RssConfig.load_from_dict(rss)
                 rss_dict[rss_config.name] = rss_config
                 rss_notify[rss_config.name] = notify
