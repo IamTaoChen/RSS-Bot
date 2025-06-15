@@ -109,7 +109,7 @@ class App:
                     try:
                         filename.rename(rotated_name)
                     except Exception as e:
-                        self.log(f"Failed to rotate log file {filename} to {rotated_name}: {e}", level=LogLevel.ERROR, force_only_to_console=True)
+                        self.log(f"❗ Failed to rotate log file {filename} to {rotated_name}: {e}", level=LogLevel.ERROR, force_only_to_console=True)
         return filename
 
     @property
