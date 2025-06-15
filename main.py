@@ -84,8 +84,12 @@ class App:
         else:
             filename = log_cfg.file
         filename.parent.mkdir(parents=True, exist_ok=True)
-        with open(filename, "a", encoding="utf-8") as f:
-            f.write(formatted_msg + "\n")
+        try:
+            with open(filename, "a", encoding="utf-8") as f:
+                f.write(formatted_msg + "\n")
+        except Exception as e:
+            color = self.color_map.get(LogLevel.ERROR, "")
+            print(f"{color}[ERROR] Failed to write log to {filename}: {e}\033[0m")
 
     @property
     def fetch_time_file(self) -> Path:
