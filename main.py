@@ -292,15 +292,19 @@ class App:
         _cfg_file_last_mtime = self._cfg_file.stat().st_mtime
         if _cfg_file_last_mtime == self._cfg_file_last_mtime:
             return
+        self.log(msg=4, is_spliter=True)
+        self.log(f"Config file {self.cfg_file} has been modified, Checking...")
         self._cfg_file_last_mtime = _cfg_file_last_mtime
         tmp_config: Config = Config.load_from_yaml(cfg_file=self.cfg_file)
         if self._config != tmp_config:
-            self.log(msg=4, is_spliter=True, log_anyway=True)
-            self.log("Config file changed, reloading...", level=LogLevel.WARNING, log_anyway=True)
+            self.log("Config is changed, reloading...", level=LogLevel.WARNING, log_anyway=True)
             self._config = tmp_config
             self._init_rss_()
             self.log("Config file reloaded successfully.", level=LogLevel.SUCCESS)
             self.log(msg=0, is_spliter=True, log_anyway=True)
+        else:
+            self.log("Config file is changed, but no significant changes detected.", level=LogLevel.INFO)
+            self.log(msg=4, is_spliter=True)
 
 
 if __name__ == "__main__":
