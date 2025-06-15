@@ -158,6 +158,16 @@ class App:
             if not rss_main:
                 # if the rss is not initialized, create a new one
                 last = datetime.now(timezone.utc)
+                if self._config.rss_from_now.get(rss_name, True):
+                    self.log(f"RSS feed {rss_name} will fetch from now.", level=LogLevel.INFO)
+                else:
+                    logged_last_time = self.fetch_time_utc.get(rss_name, None)
+                    if logged_last_time is None:
+                        self.log(f"RSS feed {rss_name} has no last fetch time logged, will fetch from now.", level=LogLevel.WARNING)
+                        logged_last_time = last
+                    else:
+                        self.log(f"RSS feed {rss_name} will fetch from the last time which is logged at file, not from now.", level=LogLevel.INFO)
+                    last = logged_last_time
                 rss_main = RssMain(rss=new_rss, last=last)
             else:
                 self.log(f"RSS feed {rss_name} already initialized, keeping the last state. But reloading the config.")
@@ -171,16 +181,6 @@ class App:
             else:
                 self.log(f"Found {len(notifies)} notify(s) for {rss_name}: {', '.join(notifies_names)}")
             rss_main.notifies = notifies
-            if not self._config.rss_from_now.get(rss_name, True):
-                logged_last_time = self.fetch_time_utc.get(rss_name, None)
-                if logged_last_time is None:
-                    self.log(f"RSS feed {rss_name} has no last fetch time logged, will fetch from now.", level=LogLevel.WARNING)
-                    logged_last_time = rss_main.last
-                else:
-                    self.log(f"RSS feed {rss_name} will fetch from the last time which is logged at file, not from now.", level=LogLevel.INFO)
-                rss_main.last = logged_last_time
-            else:
-                self.log(f"RSS feed {rss_name} will fetch from now.", level=LogLevel.INFO)
             rss_main.enable = enable
             new_rss_dict[rss_name] = rss_main
             if not enable:
@@ -212,7 +212,8 @@ class App:
                 self.log(msg=1, is_spliter=True)
                 for rss_name, rss_combine in self.rss.items():
                     self.log(msg=2, is_spliter=True)
-                    if not getattr(rss_combine, "enable", True):
+                    if not self._config.rss_enable.get(rss_name, True):
+                        self.log(f"RSS feed {rss_name} is disabled, skipping...")
                         continue
                     date_str = NotifyConfig.format_dt(dt=rss_combine.last, tz=self._config.timezone)
                     self.log(f"📡 Start handling RSS - {rss_name} (since {date_str})", no_emoji=True)
