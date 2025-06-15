@@ -34,6 +34,7 @@ class App:
         self._config: Config = Config.load_from_yaml(cfg_file=self.cfg_file)
         if isinstance(log_level, LogLevel):
             self._config.log_cfg.level = log_level
+        self.log(f"Log level: {self._config.log_cfg.level}", log_anyway=True)
         self.rss: dict[str, RssMain] = {}
         self.cache_dir: Path = Path(cache_dir)
         self.fetch_time_utc: dict[str, datetime] = {}
@@ -127,6 +128,7 @@ class App:
                 for rss_name, last_time_str in data.items():
                     self.fetch_time_utc[rss_name] = datetime.fromisoformat(last_time_str)
                 self.log(f"Loaded last check time from {self.fetch_time_file}", level="DEBUG")
+                self.log(f"Last fetch times: {self.fetch_time_utc}", level="DEBUG")
             except json.JSONDecodeError as e:
                 self.log(f"Failed to load fetch time JSON: {e}", level=LogLevel.ERROR)
 
@@ -144,7 +146,6 @@ class App:
         print(symbol * size)
 
     def _init_rss_(self) -> None:
-        self.log(f"Log level: {self._config.log_cfg.level}", log_anyway=True)
         self.log("Initializing RSS...", log_anyway=True)
         self.log("Loading AI agent...", log_anyway=True)
         ai_agent = AiAgent(ai_config=self._config.ai)
@@ -154,7 +155,7 @@ class App:
             self.log(f"Initializing RSS feed: {rss_name} with the type {rss_config.type}")
             # refill the enable
             enable = self._config.rss_enable.get(rss_name, True)
-            new_rss = create_rss(rss_config=rss_config, ai_agent=ai_agent, translate_to="Chinese", timeout=10, run_init=enable)
+            new_rss = create_rss(rss_config=rss_config, ai_agent=ai_agent, translate_to="Chinese", timeout=10, run_init=False)
             rss_main = self.rss.get(rss_name, None)
             if not rss_main:
                 # if the rss is not initialized, create a new one
@@ -220,8 +221,7 @@ class App:
                     self.log(f"📡\tStart handling RSS - {rss_name} (since {date_str})", no_emoji=True)
 
                     try:
-                        # all_items = rss_combine.rss.fetch()
-                        new_rss_items = rss_combine.rss.get_items_since(rss_combine.last)
+                        new_rss_items = rss_combine.rss.get_items_since(since=rss_combine.last, fetch=True)
                         self.log(f"📎\tFound {len(new_rss_items)} new item(s) for {rss_name}", no_emoji=True)
                         if new_rss_items:
                             self.log("🧠 Summarizing with AI agent...", no_emoji=True)
