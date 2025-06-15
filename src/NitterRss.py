@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import annotations
-from dataclasses import dataclass, field
-from .Utils import _Config, Msg
+from dataclasses import dataclass
+from .Utils import LogLevel
 from .Rss import Rss, RssItem, RssConfig
 from .Ai import AiAgent
 import re
@@ -23,9 +23,7 @@ def extract_html_p(html: str) -> str:
 
 def extract_nitter_post(url: str) -> str | None:
     try:
-        headers = {
-            "User-Agent": "Mozilla/5.0"
-        }
+        headers = {"User-Agent": "Mozilla/5.0"}
         resp = requests.get(url, headers=headers, timeout=10)
         resp.raise_for_status()
 
@@ -82,12 +80,7 @@ class Retweet:
                 clean_text = re.sub(r"<.*?>", "", match).strip()
                 if clean_text:
                     description_parts.append(clean_text)
-        retweet = cls(
-            title=item.title.strip(),
-            id=tweet_link or item.link,
-            author=author,
-            description=description_parts
-        )
+        retweet = cls(title=item.title.strip(), id=tweet_link or item.link, author=author, description=description_parts)
         try:
             url = retweet.id.replace(nitter_public_url, nitter_url)
             contents = extract_nitter_post(url)
@@ -129,7 +122,7 @@ class RssNitter(Rss):
     #             print(f"Retweet found: {retweet}")
     #     return items
 
-    def prompt(self, item: RssItem, translate_to: str = 'Chinese', custom_prompt: str = None) -> str:
+    def prompt(self, item: RssItem, translate_to: str = "Chinese", custom_prompt: str = None) -> str:
         """
         build prompt for AI agent to summarize the rss item
         :param item: RssItem object
@@ -167,23 +160,13 @@ class RssNitter(Rss):
         _str = self.rss_item_flatten(item=item)
         if is_retweet:
             # print(f"Retweet found: {retweet}")
-            _str += (
-                "\n---\n"
-                "Retweet from: \n"
-                f"Title: {retweet.title}\n"
-                f"description: {retweet.description}\n"
-                f"Link: {retweet.id}\n"
-                "---"
-            )
+            _str += f"\n---\nRetweet from: \nTitle: {retweet.title}\ndescription: {retweet.description}\nLink: {retweet.id}\n---"
         # else:
         #     print("No retweet found")
         return _str
 
     def fetch(self) -> list[RssItem]:
-        candilates = {
-            "self": self.rss_url,
-            "nitter": "https://nitter.net"
-        }
+        candilates = {"self": self.rss_url, "nitter": "https://nitter.net"}
         err: Exception = None
         success: bool = False
         for key, url in candilates.items():
@@ -192,7 +175,7 @@ class RssNitter(Rss):
                     self.__public_url = self.public_url
                     self.__url = self.url
                 else:
-                    print(f"Try to fetch RSS from {url}")
+                    print(LogLevel.WARNING.warp(f"Try to fetch RSS from {url}", now=None))
                     self.__public_url = url
                     self.__url = url
                 rss_url = f"{self.__url}/{self.author}/rss"
@@ -201,7 +184,7 @@ class RssNitter(Rss):
                 success = True
                 return items
             except Exception as e:
-                print(f"Fetch RSS for {url} failed")
+                print(LogLevel.ERROR.warp(f"Fetch RSS for {url} failed", now=None))
                 if key == "self":
                     err = e
 

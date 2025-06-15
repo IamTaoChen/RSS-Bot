@@ -5,65 +5,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from .Ai import AiConfig
 from .Rss import RssConfig
-from .Utils import _Config
+from .Utils import _Config, LogLevel
 from .Notify import NotifyConfig, MatrixConfig
-from datetime import tzinfo, datetime
+from datetime import tzinfo
 from zoneinfo import ZoneInfo
-from enum import Enum
 from pathlib import Path
-
-
-class LogLevel(Enum):
-    SUCCESS = (5, "✅", "\033[32m")
-    DEBUG = (10, "🐛", "\033[90m")
-    INFO = (20, "ℹ️", "\033[34m")
-    WARNING = (30, "⚠️", "\033[33m")
-    ERROR = (40, "❌", "\033[31m")
-
-    def __init__(self, level: int, emoji: str, color: str):
-        self._value_ = level
-        self._emoji = emoji
-        self._color = color
-
-    def __str__(self) -> str:
-        return self.name
-
-    @property
-    def emoji(self) -> str:
-        return self._emoji
-
-    @property
-    def color(self) -> str:
-        return self._color
-
-    @property
-    def color_reset(self) -> str:
-        return "\033[0m"
-
-    @classmethod
-    def from_string(cls, level_str: str | LogLevel) -> LogLevel:
-        if isinstance(level_str, LogLevel):
-            return level_str
-        try:
-            return cls[level_str.upper()]
-        except (AttributeError, KeyError):
-            print(f"⚠️ Unknown log level '{level_str}', fallback to INFO")
-            return cls.INFO
-
-    def to_emoji(self) -> str:
-        return self.emoji
-
-    def to_color(self) -> str:
-        return self.color
-
-    def warp(self, message: str, now: datetime = None, no_emoji: bool = False) -> str:
-        """
-        Wraps the message with the log level's color and emoji.
-        """
-        emoji = "" if no_emoji else f"{self.emoji} "
-        now = now or datetime.now()
-        timestamp = now.strftime("%Y-%m-%d %H:%M:%S %Z")
-        return f"{self.color}[{timestamp}] [{self.name:<7}] {emoji}{message}{self.color_reset}"
 
 
 @dataclass

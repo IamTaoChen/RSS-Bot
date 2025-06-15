@@ -1,4 +1,5 @@
-from src.Config import Config, LogLevel
+from src.Config import Config
+from src.Utils import LogLevel
 from src.Rss import Rss, RssFetchErr, get_newest_time
 from src.Ai import AiAgent
 from src.Notify import NotifyConfig, Msg
@@ -24,15 +25,17 @@ class RssMain:
 
 
 class App:
-    def __init__(self, cfg_file: str, cache_dir: str = "./cache"):
+    def __init__(self, cfg_file: str, cache_dir: str = "./cache", log_level: LogLevel = None):
         self._stop_event = threading.Event()
         signal.signal(signal.SIGTERM, self.signal_handler)
         signal.signal(signal.SIGINT, self.signal_handler)
         print("📰 Starting RSS Fetcher...")
-        print(f"Using config file: {cfg_file}")
+        print(f"{LogLevel.INFO.emoji}  Using config file: {cfg_file}")
         self._cfg_file = Path(cfg_file)
         self._cfg_file_last_mtime = self._cfg_file.stat().st_mtime
         self._config: Config = Config.load_from_yaml(cfg_file=self.cfg_file)
+        if isinstance(log_level, LogLevel):
+            self._config.log_cfg.level = log_level
         self.rss: dict[str, RssMain] = {}
         self.cache_dir: Path = Path(cache_dir)
         self.fetch_time_utc: dict[str, datetime] = {}
@@ -43,13 +46,13 @@ class App:
     def cfg_file(self) -> str:
         return self._cfg_file
 
-    def log(self, msg: str | int, level: str | LogLevel = LogLevel.INFO, no_emoji: bool = False, is_spliter: bool = False, force_only_to_console: bool = False) -> None:
+    def log(self, msg: str | int, level: str | LogLevel = LogLevel.INFO, no_emoji: bool = False, is_spliter: bool = False, force_only_to_console: bool = False, log_anyway: bool = False) -> None:
         # Convert to LogLevel
         level = LogLevel.from_string(level)
         log_cfg = self._config.log_cfg
         current_level = log_cfg.level
         # Skip if below log threshold
-        if level.value < current_level.value:
+        if level.value < current_level.value or log_anyway:
             return
         if is_spliter:
             self.print_split(order=msg if isinstance(msg, int) else 0)
@@ -179,11 +182,11 @@ class App:
         self.log(msg=3, is_spliter=True)
         enable_names = [rss_name for rss_name, rss in self.rss.items() if rss.enable]
         diable_names = [rss_name for rss_name, rss in self.rss.items() if not rss.enable]
-        print("📰 RSS feeds will be fetched:")
+        self.log("📰 RSS feeds will be fetched:", no_emoji=True, log_anyway=True)
         if len(enable_names) > 0:
-            print(f"  - ✅ \033[32mEnabled\033[0m: {', '.join(enable_names)}")
+            self.log(f"  - ✅ \033[32mEnabled\033[0m: {', '.join(enable_names)}", no_emoji=True, log_anyway=True)
         if len(diable_names) > 0:
-            print(f"  - ❌ \033[31mDisabled\033[0m: {', '.join(diable_names)}")
+            self.log(f"  - ❌ \033[31mDisabled\033[0m: {', '.join(diable_names)}", no_emoji=True, log_anyway=True)
         self.log(msg=3, is_spliter=True)
         self.log("All RSS feeds initialized successfully.", level="SUCCESS")
 
@@ -238,7 +241,7 @@ class App:
                 next_check_utc = datetime.now(timezone.utc) + remaining
                 next_check_str = NotifyConfig.format_dt(dt=next_check_utc, tz=self._config.timezone)
                 # 打印信息并等待
-                print(f"🕒 Waiting {sleep_seconds:.2f}s... Next check at {next_check_str}")
+                self.log(f"🕒 Waiting {sleep_seconds:.2f}s... Next check at {next_check_str}", no_emoji=True)
                 # Save the check time to file
                 self.save_fetch_time()
                 # sleep
@@ -307,9 +310,8 @@ if __name__ == "__main__":
 
     log_level_str = os.getenv("RSS_LOG_LEVEL") or args.log_level
     log_level = LogLevel.from_string(log_level_str) if log_level_str else None
-
-    app = App(cfg_file=args.config, cache_dir=cache_dir)
-    if log_level:
-        app._config.log_cfg.level = log_level
+    app = App(cfg_file=args.config, cache_dir=cache_dir, log_level=log_level)
+    app.log(f"Using log level: {app._config.log_cfg.level}")
+    app.log(f"Using config file: {app.cfg_file}", level="DEBUG")
     app.log(f"Fetch RSS evey {interval_sec} second")
     app.run(interval=interval_sec)
