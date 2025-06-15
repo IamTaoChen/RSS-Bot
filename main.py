@@ -222,7 +222,7 @@ class App:
                     try:
                         # all_items = rss_combine.rss.fetch()
                         new_rss_items = rss_combine.rss.get_items_since(rss_combine.last)
-                        self.log(f"📎\tFound {len(new_rss_items)} new item(s)", no_emoji=True)
+                        self.log(f"📎\tFound {len(new_rss_items)} new item(s) for {rss_name}", no_emoji=True)
                         if new_rss_items:
                             self.log("🧠 Summarizing with AI agent...", no_emoji=True)
                             self.rss[rss_name].last = get_newest_time(new_rss_items)
