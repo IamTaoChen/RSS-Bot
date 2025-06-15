@@ -23,12 +23,29 @@ class LogLevel(Enum):
     def __str__(self):
         return self.name
 
+    @classmethod
+    def from_string(cls, level_str: str) -> LogLevel:
+        try:
+            return cls[level_str.upper()]
+        except KeyError:
+            print(f"⚠️ Unknown log level '{level_str}', fallback to INFO")
+            return cls.INFO
+
 
 @dataclass
 class LogCfg:
     level: LogLevel = LogLevel.INFO
     file: Path = None
     to_console: bool = True
+
+    @classmethod
+    def load_from_dict(cls, dict_data: dict) -> "LogCfg":
+        if not dict_data:
+            return cls()
+        level = LogLevel.from_string(dict_data.get("level", "INFO"))
+        file = Path(dict_data.get("file", "")) if dict_data.get("file") else None
+        to_console = dict_data.get("to_console", True)
+        return cls(level=level, file=file, to_console=to_console)
 
 
 @dataclass
@@ -43,11 +60,7 @@ class Config(_Config):
 
     @classmethod
     def load_from_dict(cls, dict_data: dict) -> "Config":
-        if "log" in dict_data:
-            log_cfg = LogCfg(**dict_data["log"])
-            if isinstance(log_cfg.level, str):
-                log_cfg.level = LogLevel[log_cfg.level]
-            log_cfg.file = Path(log_cfg.file) if log_cfg.file else None
+        log_cfg: LogCfg = LogCfg.load_from_dict(dict_data.get("log", None))
         if "ai" in dict_data:
             ai_config = AiConfig.load_from_dict(dict_data["ai"])
         else:
