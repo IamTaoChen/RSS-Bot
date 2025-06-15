@@ -83,8 +83,8 @@ class App:
             filename = log_cfg.file / f"{date_str}.log"
         else:
             filename = log_cfg.file
-        filename.parent.mkdir(parents=True, exist_ok=True)
         try:
+            filename.parent.mkdir(parents=True, exist_ok=True)
             with open(filename, "a", encoding="utf-8") as f:
                 f.write(formatted_msg + "\n")
         except Exception as e:
