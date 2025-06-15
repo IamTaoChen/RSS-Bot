@@ -33,8 +33,8 @@ class LogCfg:
 
 @dataclass
 class Config(_Config):
-    log_cfg: LogCfg = field(default_factory=LogCfg)
     ai: AiConfig
+    log_cfg: LogCfg = field(default_factory=LogCfg)
     rss: dict[str, RssConfig] = field(default_factory=dict)
     rss_notify: dict[str, list[str]] = field(default_factory=dict)
     rss_enable: dict[str, list[bool]] = field(default_factory=dict)
