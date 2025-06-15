@@ -37,7 +37,8 @@ class App:
         self._stop_event = threading.Event()
         signal.signal(signal.SIGTERM, self.signal_handler)
         signal.signal(signal.SIGINT, self.signal_handler)
-        self.log(f"App parsing config file: {cfg_file}")
+        print("📰 Starting RSS Fetcher...")
+        print(f"Using config file: {cfg_file}")
         self._cfg_file = Path(cfg_file)
         self._cfg_file_last_mtime = self._cfg_file.stat().st_mtime
         self._config: Config = Config.load_from_yaml(cfg_file=self.cfg_file)
