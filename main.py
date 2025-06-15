@@ -178,7 +178,7 @@ class App:
                 self.log(f"RSS feed {rss_name} is disabled, it will not be fetched.", level="WARNING")
             else:
                 msg = f"RSS feed {rss_name} initialized with {len(rss_main.notifies)} notify(s) and last fetch time {NotifyConfig.format_dt(dt=rss_main.last, tz=self._config.timezone)}"
-                self.log(msg, level="SUCCESS")
+                self.log(msg, level=LogLevel.SUCCESS)
         self.rss = new_rss_dict
         self.log(msg=3, is_spliter=True)
         enable_names = [rss_name for rss_name, rss in self.rss.items() if rss.enable]
@@ -189,7 +189,7 @@ class App:
         if len(diable_names) > 0:
             self.log(f"    - ❌ \033[31mDisabled\033[0m: {', '.join(diable_names)}", no_emoji=True, log_anyway=True)
         self.log(msg=3, is_spliter=True)
-        self.log("All RSS feeds initialized successfully.", level="SUCCESS")
+        self.log("All RSS feeds initialized successfully.", level=LogLevel.SUCCESS)
 
     def make_error_msg(self, rss_name: str, url: str, error: Exception) -> Msg:
         return Msg(title=f"Error: {rss_name}", description=f"Something went wrong while processing the RSS feed.\n\nURL: {url}", link=url, pub_date=datetime.now(timezone.utc), msg_type="error", contents={"Exception": str(error), "RSS Name": rss_name})
@@ -287,7 +287,7 @@ class App:
             self.log("Config file changed, reloading...", level="WARNING")
             self._config = tmp_config
             self._init_rss_()
-            self.log("Config file reloaded successfully.", level="SUCCESS")
+            self.log("Config file reloaded successfully.", level=LogLevel.SUCCESS)
             self.log(msg=0, is_spliter=True)
 
 

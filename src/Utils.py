@@ -11,10 +11,8 @@ import re
 from html import unescape
 from enum import Enum
 
-
-
 class LogLevel(Enum):
-    SUCCESS = (5, "✅", "\033[32m")
+    SUCCESS = (100, "✅", "\033[32m")
     DEBUG = (10, "🐛", "\033[90m")
     INFO = (20, "ℹ️", "\033[34m")
     WARNING = (30, "⚠️", "\033[33m")
