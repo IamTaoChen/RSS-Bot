@@ -9,7 +9,7 @@ from time import sleep
 import argparse
 from pathlib import Path
 from random import randint
-
+import json
 
 @dataclass
 class RssMain:
@@ -39,8 +39,8 @@ class App:
         self._config: Config = Config.load_from_yaml(cfg_file=self.cfg_file)
         self.rss: dict[str, RssMain] = {}
         self.cache_dir: Path = Path(cache_dir)
-        self.check_time_utc: datetime = datetime.now(timezone.utc)
-        self.load_check_time()
+        self.fetch_time_utc: dict[str, datetime] = {}
+        self.load_fetch_time()
         self._init_rss_()
 
     @property
@@ -61,25 +61,29 @@ class App:
         print(f"{color}[{now}] [{level.upper()}] {msg}{self.color_reset}")
 
     @property
-    def check_time_file(self) -> Path:
-        return self.cache_dir / "check_time.txt"
+    def fetch_time_file(self) -> Path:
+        return self.cache_dir / "fetch_time.json"
 
-    def save_check_time(self) -> None:
-        if not self.check_time_utc:
-            self.check_time_utc = datetime.now(timezone.utc)
-        with open(self.check_time_file.as_posix(), "w") as f:
-            f.write(self.check_time_utc.isoformat())
+    def save_fetch_time(self) -> None:
+        data = {k: v.isoformat() for k, v in self.fetch_time_utc.items()}
+        with open(self.fetch_time_file, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+        self.log(f"Saved last check time to {self.fetch_time_file}", level="DEBUG")
 
-    def load_check_time(self) -> None:
-        try:
-            with open(self.check_time_file.as_posix(), "r") as f:
-                self.check_time_utc = datetime.fromisoformat(f.read().strip())
-                self.log(f"Loaded last check time: {self.check_time_utc.isoformat()}", level="DEBUG")
-        except FileNotFoundError:
-            self.check_time_utc = datetime.now(timezone.utc)
-        except Exception as e:
-            self.log(f"Error loading check time: {e}", level="ERROR")
-            self.check_time_utc = datetime.now(timezone.utc)
+    def load_fetch_time(self) -> None:
+        if not self.fetch_time_file.exists():
+            self.log(f"Fetch time file {self.fetch_time_file} does not exist, creating a new one.", level="DEBUG")
+            self.fetch_time_file.touch()
+            return
+
+        with open(self.fetch_time_file, "r", encoding="utf-8") as f:
+            try:
+                data = json.load(f)
+                for rss_name, last_time_str in data.items():
+                    self.fetch_time_utc[rss_name] = datetime.fromisoformat(last_time_str)
+                self.log(f"Loaded last check time from {self.fetch_time_file}", level="DEBUG")
+            except json.JSONDecodeError as e:
+                self.log(f"Failed to load fetch time JSON: {e}", level="ERROR")
 
     def print_split(self, order: int = 0):
         symbol = "="
@@ -99,7 +103,7 @@ class App:
         self.log(f"Loading AI agent...")
         ai_agent = AiAgent(ai_config=self._config.ai)
         new_rss_dict: dict[str, Rss] = {}
-        self.log(f"Check RSS feeds from {self.check_time_utc.isoformat()}")
+        self.log(f"Check RSS feeds from {self.fetch_time_utc.isoformat()}")
         for rss_name, rss_config in self._config.rss.items():
             self.print_split(order=3)
             self.log(f"Initializing RSS feed: {rss_name} with the type {rss_config.type}")
@@ -126,7 +130,7 @@ class App:
             if not enable:
                 self.log(f"❗ RSS feed {rss_name} is disabled, it will not be fetched.", level="WARNING")
             rss_main.enable = enable
-            rss_main.last = self.check_time_utc
+            rss_main.last = self.fetch_time_utc.get(rss_name, rss_main.last)
             new_rss_dict[rss_name] = rss_main
             self.log(f"Initialized RSS feed: {rss_name}", level="SUCCESS")
         self.rss = new_rss_dict
@@ -148,7 +152,6 @@ class App:
         self.print_split(order=0)
         try:
             while True:
-                fetch_success: list[bool]= []
                 t0 = datetime.now(tz=timezone.utc)
                 self.print_split(order=1)
                 for rss_name, rss_combine in self.rss.items():
@@ -173,7 +176,7 @@ class App:
                             self.log(f"✅ {rss_name} is back online after {rss_combine.error_count} failed attempts.")
                             rss_combine.error_count = 0
                             rss_combine.msgs_buffer = [msg for msg in rss_combine.msgs_buffer if msg.msg_type != "error"]
-                        fetch_success.append(True)
+                        self.fetch_time_utc[rss_name] = rss_combine.last
                     except RssFetchErr as e:
                         rss_combine.error_count += 1
                         self.log(f"❗ Error while handling {rss_name} (fail count: {rss_combine.error_count}): {e}", level="ERROR")
@@ -181,10 +184,8 @@ class App:
                             self.log("📬 Notify user about fetch failure...")
                             msg = self.make_error_msg(rss_name, rss_combine.rss.config.url, e)
                             rss_combine.msgs_buffer.append(msg)
-                        fetch_success.append(False)
                     except Exception as e:
                         self.log(f"❗ Unknown error while handling {rss_name}: {e}", level="ERROR")
-                        fetch_success.append(False)
                     self.send()
                     self.print_split(order=2)
                 self.print_split(order=1)
@@ -198,9 +199,7 @@ class App:
                 # 打印信息并等待
                 print(f"🕒 Waiting {sleep_seconds:.2f}s... Next check at {next_check_str}")
                 # Save the check time to file
-                if all(fetch_success):
-                    self.check_time_utc = t0
-                    self.save_check_time()
+                self.save_fetch_time()
                 # sleep
                 sleep(sleep_seconds)
                 self.check_config_and_load()
