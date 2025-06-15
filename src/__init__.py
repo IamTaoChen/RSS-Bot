@@ -1,10 +1,9 @@
-
 from .Rss import Rss, RssConfig
 from .NitterRss import RssNitter
 from .Ai import AiAgent
 
 
-def create_rss(rss_config: RssConfig, ai_agent: AiAgent, translate_to: str = "Chinese", timeout=60) -> Rss | RssNitter:
+def create_rss(rss_config: RssConfig, ai_agent: AiAgent, translate_to: str = "Chinese", timeout=60, run_init: bool = True) -> Rss | RssNitter:
     """
     Create an instance of Rss or RssNitter based on the type of the RSS feed.
     :param rss_config: The configuration for the RSS feed.
@@ -13,6 +12,6 @@ def create_rss(rss_config: RssConfig, ai_agent: AiAgent, translate_to: str = "Ch
     :return: An instance of Rss or RssNitter.
     """
     if rss_config.type.lower() == "nitter":
-        return RssNitter(config=rss_config, ai_agent=ai_agent, translate_to=translate_to, timeout=timeout)
+        return RssNitter(config=rss_config, ai_agent=ai_agent, translate_to=translate_to, timeout=timeout, run_init=run_init)
     else:
-        return Rss(config=rss_config, ai_agent=ai_agent, translate_to=translate_to, timeout=timeout)
+        return Rss(config=rss_config, ai_agent=ai_agent, translate_to=translate_to, timeout=timeout, run_init=run_init)
