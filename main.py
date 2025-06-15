@@ -5,7 +5,6 @@ from src.Notify import NotifyConfig, Msg
 from src import create_rss
 from datetime import datetime, timezone, timedelta
 from dataclasses import dataclass, field
-from time import sleep
 import argparse
 from pathlib import Path
 from random import randint
