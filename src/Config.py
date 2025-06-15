@@ -34,7 +34,7 @@ class Config(_Config):
     log_cfg: LogCfg = field(default_factory=LogCfg)
     rss: dict[str, RssConfig] = field(default_factory=dict)
     rss_notify: dict[str, list[str]] = field(default_factory=dict)
-    rss_enable: dict[str, list[bool]] = field(default_factory=dict)
+    rss_enable: dict[str, bool] = field(default_factory=dict)
     rss_from_now: dict[str, bool] = field(default_factory=dict)
     notifies: dict[str, NotifyConfig] = field(default_factory=dict)
     timezone: tzinfo = field(default=None)

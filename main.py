@@ -152,7 +152,7 @@ class App:
             self.log(msg=3, is_spliter=True)
             self.log(f"Initializing RSS feed: {rss_name} with the type {rss_config.type}")
             # refill the enable
-            enable = self._config.rss_enable[rss_name]
+            enable = self._config.rss_enable.get(rss_name, True)
             new_rss = create_rss(rss_config=rss_config, ai_agent=ai_agent, translate_to="Chinese", timeout=10, run_init=enable)
             rss_main = self.rss.get(rss_name, None)
             if not rss_main:
