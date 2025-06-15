@@ -128,7 +128,7 @@ class App:
                     self.fetch_time_utc[rss_name] = datetime.fromisoformat(last_time_str)
                 self.log(f"Loaded last check time from {self.fetch_time_file}", level="DEBUG")
             except json.JSONDecodeError as e:
-                self.log(f"Failed to load fetch time JSON: {e}", level="ERROR")
+                self.log(f"Failed to load fetch time JSON: {e}", level=LogLevel.ERROR)
 
     def print_split(self, order: int = 0):
         symbol = "="
@@ -144,6 +144,7 @@ class App:
         print(symbol * size)
 
     def _init_rss_(self) -> None:
+        self.log(f"Log level: {self._config.log_cfg.level}", log_anyway=True)
         self.log("Initializing RSS...", log_anyway=True)
         self.log("Loading AI agent...", log_anyway=True)
         ai_agent = AiAgent(ai_config=self._config.ai)
@@ -205,7 +206,7 @@ class App:
 
     def run(self, interval: int = 60):
         self.log(msg=0, is_spliter=True)
-        self.log("Starting RSS fetcher...", log_anyway=True)
+        self.log(f"Starting RSS fetcher every {interval} seconds", log_anyway=True)
         try:
             while not self._stop_event.is_set():
                 t0 = datetime.now(tz=timezone.utc)
@@ -234,13 +235,13 @@ class App:
                             rss_combine.msgs_buffer = [msg for msg in rss_combine.msgs_buffer if msg.msg_type != "error"]
                     except RssFetchErr as e:
                         rss_combine.error_count += 1
-                        self.log(f"Error while handling {rss_name} (fail count: {rss_combine.error_count}): {e}", level="ERROR")
+                        self.log(f"Error while handling {rss_name} (fail count: {rss_combine.error_count}): {e}", level=LogLevel.ERROR)
                         if rss_combine.error_count == 3:
                             self.log("📬 Notify user about fetch failure...", no_emoji=True)
                             msg = self.make_error_msg(rss_name, rss_combine.rss.config.url, e)
                             rss_combine.msgs_buffer.append(msg)
                     except Exception as e:
-                        self.log(f"Unknown error while handling {rss_name}: {e}", level="ERROR")
+                        self.log(f"Unknown error while handling {rss_name}: {e}", level=LogLevel.ERROR)
                     self.send()
                     self.log(msg=2, is_spliter=True)
                 self.log(msg=1, is_spliter=True)
@@ -261,7 +262,7 @@ class App:
         except KeyboardInterrupt:
             self.log("🛑 Exiting...", no_emoji=True)
         except Exception as e:
-            self.log(f"Unknown error: {e}", level="ERROR")
+            self.log(f"Unknown error: {e}", level=LogLevel.ERROR)
 
     def send(self) -> None:
         for rss_name, rss_combine in self.rss.items():
@@ -324,7 +325,4 @@ if __name__ == "__main__":
     log_level_str = os.getenv("RSS_LOG_LEVEL") or args.log_level
     log_level = LogLevel.from_string(log_level_str) if log_level_str else None
     app = App(cfg_file=args.config, cache_dir=cache_dir, log_level=log_level)
-    app.log(f"Using log level: {app._config.log_cfg.level}")
-    app.log(f"Using config file: {app.cfg_file}", level="DEBUG")
-    app.log(f"Fetch RSS evey {interval_sec} second")
     app.run(interval=interval_sec)
