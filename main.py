@@ -64,7 +64,7 @@ class App:
         # Print to console
         if log_cfg.to_console or level in (LogLevel.ERROR, LogLevel.SUCCESS) or force_only_to_console or log_anyway:
             print(formatted_msg)
-         
+
         # Check if we should log to file
         if log_cfg.file is None or force_only_to_console:
             return
@@ -105,7 +105,7 @@ class App:
         return self.cache_dir / "fetch_time.json"
 
     def signal_handler(self, signum, frame):
-        self.log(f"Received signal {signum}, shutting down gracefully...", level="WARNING")
+        self.log(f"Received signal {signum}, shutting down gracefully...", level=LogLevel.WARNING)
         self.save_fetch_time()
         self._stop_event.set()
 
@@ -165,7 +165,7 @@ class App:
             notifies = self._config.get_notfies_by_names(self._config.rss_notify[rss_name])
             notifies_names = [notify.name for notify in notifies]
             if len(notifies) <= 0:
-                self.log(f"No notify found for {rss_name}, please check the config file.", level="Warning")
+                self.log(f"No notify found for {rss_name}, please check the config file.", level=LogLevel.WARNING)
             else:
                 self.log(f"Found {len(notifies)} notify(s) for {rss_name}: {', '.join(notifies_names)}")
             rss_main.notifies = notifies
@@ -175,7 +175,7 @@ class App:
             rss_main.enable = enable
             new_rss_dict[rss_name] = rss_main
             if not enable:
-                self.log(f"RSS feed {rss_name} is disabled, it will not be fetched.", level="WARNING")
+                self.log(f"RSS feed {rss_name} is disabled, it will not be fetched.", level=LogLevel.WARNING)
             else:
                 msg = f"RSS feed {rss_name} initialized with {len(rss_main.notifies)} notify(s) and last fetch time {NotifyConfig.format_dt(dt=rss_main.last, tz=self._config.timezone)}"
                 self.log(msg, level=LogLevel.SUCCESS)
@@ -222,7 +222,6 @@ class App:
                             self.log(f"✅ {rss_name} is back online after {rss_combine.error_count} failed attempts.", no_emoji=True)
                             rss_combine.error_count = 0
                             rss_combine.msgs_buffer = [msg for msg in rss_combine.msgs_buffer if msg.msg_type != "error"]
-                        self.fetch_time_utc[rss_name] = rss_combine.last
                     except RssFetchErr as e:
                         rss_combine.error_count += 1
                         self.log(f"Error while handling {rss_name} (fail count: {rss_combine.error_count}): {e}", level="ERROR")
@@ -269,7 +268,9 @@ class App:
 
             rss_combine.msgs_buffer = [msg for msg in rss_combine.msgs_buffer if id(msg) in failed_ids]
             if rss_combine.msgs_buffer:
-                self.log(f"{rss_name}: {len(rss_combine.msgs_buffer)} message(s) failed to send and will be retried.", level="WARNING")
+                self.log(f"{rss_name}: {len(rss_combine.msgs_buffer)} message(s) failed to send and will be retried.", level=LogLevel.WARNING)
+            else:
+                self.fetch_time_utc[rss_name] = rss_combine.last
 
     def check_config_and_load(self) -> None:
         """
@@ -284,7 +285,7 @@ class App:
         tmp_config: Config = Config.load_from_yaml(cfg_file=self.cfg_file)
         if self._config != tmp_config:
             self.log(msg=4, is_spliter=True)
-            self.log("Config file changed, reloading...", level="WARNING")
+            self.log("Config file changed, reloading...", level=LogLevel.WARNING)
             self._config = tmp_config
             self._init_rss_()
             self.log("Config file reloaded successfully.", level=LogLevel.SUCCESS)
