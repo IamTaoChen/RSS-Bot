@@ -54,7 +54,7 @@ class App:
         # Skip if below log threshold
         if level.value < current_level.value or log_anyway:
             return
-        if is_spliter:
+        if is_spliter and log_cfg.to_console:
             self.print_split(order=msg if isinstance(msg, int) else 0)
             return
         # Format time
