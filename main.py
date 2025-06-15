@@ -1,4 +1,4 @@
-from src.Config import Config
+from src.Config import Config, LogLevel
 from src.Rss import Rss, RssFetchErr, get_newest_time
 from src.Ai import AiAgent
 from src.Notify import NotifyConfig, Msg
@@ -25,19 +25,18 @@ class RssMain:
 
 class App:
     color_map = {
-        "INFO": "\033[34m",  # Blue
-        "WARNING": "\033[33m",  # Yellow
-        "ERROR": "\033[31m",  # Red
-        "DEBUG": "\033[90m",  # Gray
-        "SUCCESS": "\033[32m",  # Green
+        LogLevel.INFO: "\033[34m",
+        LogLevel.WARNING: "\033[33m",
+        LogLevel.ERROR: "\033[31m",
+        LogLevel.DEBUG: "\033[90m",
+        LogLevel.SUCCESS: "\033[32m",
     }
     color_reset = "\033[0m"
 
-    def __init__(self, cfg_file: str, cache_dir: str = "./cache"):
+    def __init__(self, cfg_file: str, cache_dir: str = "./cache", log_level: str = "INFO", log_file: str = None):
         self._stop_event = threading.Event()
         signal.signal(signal.SIGTERM, self.signal_handler)
         signal.signal(signal.SIGINT, self.signal_handler)
-        self.verbose = True
         self.log(f"App parsing config file: {cfg_file}")
         self._cfg_file = Path(cfg_file)
         self._cfg_file_last_mtime = self._cfg_file.stat().st_mtime
@@ -52,18 +51,41 @@ class App:
     def cfg_file(self) -> str:
         return self._cfg_file
 
-    def log(self, msg: str, level: str = "INFO"):
-        if not self.verbose:
-            return
-        tz = timezone.utc
+    def log(self, msg: str, level: str | LogLevel = LogLevel.INFO) -> None:
+        # Convert to LogLevel
         try:
-            if self._config.timezone:
-                tz = self._config.timezone
-        except:
-            pass
+            if isinstance(level, str):
+                level = LogLevel[level.upper()]
+        except KeyError:
+            print(f"[WARN] Unknown log level: {level}, fallback to INFO")
+            level = LogLevel.INFO
+
+        log_cfg = self._config.log_cfg
+        current_level = log_cfg.level
+
+        # Skip if below log threshold
+        if level.value < current_level.value:
+            return
+
+        # Format time
+        tz = self._config.timezone or timezone.utc
         now = datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S %Z")
-        color = self.color_map.get(level.upper(), "")
-        print(f"{color}[{now}] [{level.upper()}] {msg}{self.color_reset}")
+        formatted_msg = f"[{now}] [{level.name}] {msg}"
+
+        # Print to console
+        if log_cfg.to_console:
+            color = self.color_map.get(level, "")
+            print(f"{color}{formatted_msg}\033[0m")
+
+        # Write to file
+        if log_cfg.file.is_dir():
+            date_str = datetime.now(tz).strftime("%Y-%m-%d")
+            filename = log_cfg.file / f"{date_str}.log"
+        else:
+            filename = log_cfg.file
+        filename.parent.mkdir(parents=True, exist_ok=True)
+        with open(filename, "a", encoding="utf-8") as f:
+            f.write(formatted_msg + "\n")
 
     @property
     def fetch_time_file(self) -> Path:
@@ -263,6 +285,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--config", required=False, help="Path to config YAML file", default="./config.yaml")
     parser.add_argument("-d", "--cache-dir", required=False, help="Path to cache dir", default="/tmp/rss_cache")
+    parser.add_argument("-l", "--log-level", required=False, help="Log level", default="WARNING")
     parser.add_argument("-i", "--interval", type=int, required=False, help="Polling interval in seconds", default=None)
     args = parser.parse_args()
 
@@ -274,6 +297,14 @@ if __name__ == "__main__":
     if not Path(cache_dir).exists():
         Path(cache_dir).mkdir(parents=True, exist_ok=True)
 
+    log_level_env = os.getenv("RSS_LOG_LEVEL")
+    log_level = args.log_level if args.log_level else log_level_env if log_level_env else None
+    log_level = LogLevel[log_level.upper()] if isinstance(log_level, str) else log_level
+    if not isinstance(log_level, LogLevel) or log_level is not None:
+        print(f"Unknown log level: {log_level}, fallback to INFO")
+        log_level = LogLevel.INFO
     app = App(cfg_file=args.config, cache_dir=cache_dir)
+    if log_level:
+        app._config.log_cfg.level = log_level
     app.log(f"Fetch RSS evey {interval_sec} second")
     app.run(interval=interval_sec)
