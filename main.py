@@ -201,12 +201,12 @@ class App:
                     if not getattr(rss_combine, "enable", True):
                         continue
                     date_str = NotifyConfig.format_dt(dt=rss_combine.last, tz=self._config.timezone)
-                    self.log(f"📡 Start handling RSS - {rss_name} (since {date_str})")
+                    self.log(f"📡 Start handling RSS - {rss_name} (since {date_str})", no_emoji=True)
 
                     try:
                         # all_items = rss_combine.rss.fetch()
                         new_rss_items = rss_combine.rss.get_items_since(rss_combine.last)
-                        self.log(f"📎 Found {len(new_rss_items)} new item(s)")
+                        self.log(f"📎 Found {len(new_rss_items)} new item(s)", no_emoji=True)
                         if new_rss_items:
                             self.log("🧠 Summarizing with AI agent...", no_emoji=True)
                             self.rss[rss_name].last = get_newest_time(new_rss_items)
