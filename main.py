@@ -11,6 +11,7 @@ from pathlib import Path
 from random import randint
 import json
 
+
 @dataclass
 class RssMain:
     rss: Rss = None
@@ -103,7 +104,6 @@ class App:
         self.log(f"Loading AI agent...")
         ai_agent = AiAgent(ai_config=self._config.ai)
         new_rss_dict: dict[str, Rss] = {}
-        self.log(f"Check RSS feeds from {self.fetch_time_utc.isoformat()}")
         for rss_name, rss_config in self._config.rss.items():
             self.print_split(order=3)
             self.log(f"Initializing RSS feed: {rss_name} with the type {rss_config.type}")
@@ -132,7 +132,8 @@ class App:
             rss_main.enable = enable
             rss_main.last = self.fetch_time_utc.get(rss_name, rss_main.last)
             new_rss_dict[rss_name] = rss_main
-            self.log(f"Initialized RSS feed: {rss_name}", level="SUCCESS")
+            msg = f"RSS feed {rss_name} initialized with {len(rss_main.notifies)} notify(s) and last fetch time {NotifyConfig.format_dt(dt=rss_main.last, tz=self._config.timezone)}"
+            self.log(msg, level="SUCCESS")
         self.rss = new_rss_dict
         self.print_split(order=3)
         enable_names = [rss_name for rss_name, rss in self.rss.items() if rss.enable]
@@ -194,7 +195,7 @@ class App:
                 remaining = max(timedelta(seconds=interval) - elapsed, timedelta(0))
                 sleep_seconds = remaining.total_seconds() + randint(-5, 5)  # Add a random jitter of up to 5 seconds
                 # 计算下次检查时间并格式化
-                next_check_utc = datetime.now(timezone.utc) + remaining 
+                next_check_utc = datetime.now(timezone.utc) + remaining
                 next_check_str = NotifyConfig.format_dt(dt=next_check_utc, tz=self._config.timezone)
                 # 打印信息并等待
                 print(f"🕒 Waiting {sleep_seconds:.2f}s... Next check at {next_check_str}")
