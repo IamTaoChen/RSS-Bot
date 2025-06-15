@@ -226,9 +226,13 @@ class App:
                         if new_rss_items:
                             self.log("🧠 Summarizing with AI agent...", no_emoji=True)
                             self.rss[rss_name].last = get_newest_time(new_rss_items)
-                            msgs = rss_combine.rss.summarize(items=new_rss_items, verbose=True)
+                            summarized_verbose = self._config.log_cfg.level == LogLevel.DEBUG
+                            msgs = rss_combine.rss.summarize(items=new_rss_items, verbose=summarized_verbose)
                             rss_combine.msgs_buffer.extend(msgs)
-
+                            if not summarized_verbose:
+                                for item in msgs:
+                                    pub_date_str = NotifyConfig.format_dt(dt=item.pub_date, tz=self._config.timezone)
+                                    self.log(f"  - ({pub_date_str}) {item.title}", no_emoji=True)
                         if rss_combine.error_count > 0:
                             self.log(f"✅\t{rss_name} is back online after {rss_combine.error_count} failed attempts.", no_emoji=True)
                             rss_combine.error_count = 0

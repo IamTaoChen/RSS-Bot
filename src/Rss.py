@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 import requests
 import feedparser
 from .Ai import AiAgent
-from .Utils import _Config, Msg
+from .Utils import _Config, Msg, LogLevel
 from datetime import datetime, timezone
 import calendar
 
@@ -214,7 +214,7 @@ class Rss:
         for item in items:
             prompt_str = self.prompt(item=item, translate_to=self.translate_to, custom_prompt=self.config.prompts)
             if verbose:
-                print(f"Summarizing item: {item.title}")
+                print(LogLevel.DEBUG.warp(message=f"Summarizing item: {item.title}"))
             reply = self._ai_agent.act(prompt=prompt_str)
             format_reply = self.format_output(reply)
             msg = Msg(
