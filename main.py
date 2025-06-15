@@ -69,12 +69,15 @@ class App:
         # Print to console
         if log_cfg.to_console or level == LogLevel.ERROR or level == LogLevel.SUCCESS:
             if is_spliter:
-                self.print_split(order=msg)
+                self.print_split(order=msg if isinstance(msg, int) else 0)
                 return
             else:
                 color = self.color_map.get(level, "")
                 print(f"{color}{formatted_msg}\033[0m")
 
+        if is_spliter:
+            return
+        
         # Write to file
         if log_cfg.file.is_dir():
             date_str = datetime.now(tz).strftime("%Y-%m-%d")
