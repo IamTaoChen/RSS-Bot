@@ -61,7 +61,7 @@ class App:
 
         # Print to console
         if log_cfg.to_console or level in (LogLevel.ERROR, LogLevel.SUCCESS) or force_only_to_console:
-            print(f"{level.to_color()}{formatted_msg}{level.color_reset}")
+            print(formatted_msg)
         if log_cfg.file is None or force_only_to_console:
             return
         # Write to file
