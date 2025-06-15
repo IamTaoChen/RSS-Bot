@@ -29,7 +29,6 @@ class App:
         self._stop_event = threading.Event()
         signal.signal(signal.SIGTERM, self.signal_handler)
         signal.signal(signal.SIGINT, self.signal_handler)
-        print("📰 Starting RSS Fetcher...")
         print(f"{LogLevel.INFO.emoji}  Using config file: {cfg_file}")
         self._cfg_file = Path(cfg_file)
         self._cfg_file_last_mtime = self._cfg_file.stat().st_mtime
@@ -52,7 +51,7 @@ class App:
         log_cfg = self._config.log_cfg
         current_level = log_cfg.level
         # Skip if below log threshold
-        if level.value < current_level.value or log_anyway:
+        if level.value < current_level.value and not log_anyway:
             return
         if is_spliter and log_cfg.to_console:
             self.print_split(order=msg if isinstance(msg, int) else 0)
@@ -63,8 +62,10 @@ class App:
         formatted_msg = level.warp(message=msg, now=now, no_emoji=no_emoji)
 
         # Print to console
-        if log_cfg.to_console or level in (LogLevel.ERROR, LogLevel.SUCCESS) or force_only_to_console:
+        if log_cfg.to_console or level in (LogLevel.ERROR, LogLevel.SUCCESS) or force_only_to_console or log_anyway:
             print(formatted_msg)
+         
+        # Check if we should log to file
         if log_cfg.file is None or force_only_to_console:
             return
         # Write to file
@@ -143,8 +144,9 @@ class App:
         print(symbol * size)
 
     def _init_rss_(self) -> None:
-        self.log("Initializing RSS...")
-        self.log("Loading AI agent...")
+        print("init")
+        self.log("Initializing RSS...", log_anyway=True)
+        self.log("Loading AI agent...", log_anyway=True)
         ai_agent = AiAgent(ai_config=self._config.ai)
         new_rss_dict: dict[str, Rss] = {}
         for rss_name, rss_config in self._config.rss.items():
@@ -195,6 +197,7 @@ class App:
 
     def run(self, interval: int = 60):
         self.log(msg=0, is_spliter=True)
+        self.log("Starting RSS fetcher...", log_anyway=True)
         try:
             while not self._stop_event.is_set():
                 t0 = datetime.now(tz=timezone.utc)
