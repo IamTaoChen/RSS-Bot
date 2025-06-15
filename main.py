@@ -29,7 +29,6 @@ class App:
         self._stop_event = threading.Event()
         signal.signal(signal.SIGTERM, self.signal_handler)
         signal.signal(signal.SIGINT, self.signal_handler)
-        print(f"{LogLevel.INFO.emoji}  Using config file: {cfg_file}")
         self._cfg_file = Path(cfg_file)
         self._cfg_file_last_mtime = self._cfg_file.stat().st_mtime
         self._config: Config = Config.load_from_yaml(cfg_file=self.cfg_file)
@@ -194,7 +193,7 @@ class App:
         self.log(msg=3, is_spliter=True)
         enable_names = [rss_name for rss_name, rss in self.rss.items() if rss.enable]
         diable_names = [rss_name for rss_name, rss in self.rss.items() if not rss.enable]
-        self.log("📰 RSS feeds will be fetched:", no_emoji=True, log_anyway=True)
+        self.log("📰\tRSS feeds will be fetched:", no_emoji=True, log_anyway=True)
         if len(enable_names) > 0:
             self.log(f"    - ✅ \033[32mEnabled\033[0m: {', '.join(enable_names)}", no_emoji=True, log_anyway=True)
         if len(diable_names) > 0:
@@ -218,12 +217,12 @@ class App:
                         self.log(f"RSS feed {rss_name} is disabled, skipping...")
                         continue
                     date_str = NotifyConfig.format_dt(dt=rss_combine.last, tz=self._config.timezone)
-                    self.log(f"📡 Start handling RSS - {rss_name} (since {date_str})", no_emoji=True)
+                    self.log(f"📡\tStart handling RSS - {rss_name} (since {date_str})", no_emoji=True)
 
                     try:
                         # all_items = rss_combine.rss.fetch()
                         new_rss_items = rss_combine.rss.get_items_since(rss_combine.last)
-                        self.log(f"📎 Found {len(new_rss_items)} new item(s)", no_emoji=True)
+                        self.log(f"📎\tFound {len(new_rss_items)} new item(s)", no_emoji=True)
                         if new_rss_items:
                             self.log("🧠 Summarizing with AI agent...", no_emoji=True)
                             self.rss[rss_name].last = get_newest_time(new_rss_items)
@@ -231,14 +230,14 @@ class App:
                             rss_combine.msgs_buffer.extend(msgs)
 
                         if rss_combine.error_count > 0:
-                            self.log(f"✅ {rss_name} is back online after {rss_combine.error_count} failed attempts.", no_emoji=True)
+                            self.log(f"✅\t{rss_name} is back online after {rss_combine.error_count} failed attempts.", no_emoji=True)
                             rss_combine.error_count = 0
                             rss_combine.msgs_buffer = [msg for msg in rss_combine.msgs_buffer if msg.msg_type != "error"]
                     except RssFetchErr as e:
                         rss_combine.error_count += 1
                         self.log(f"Error while handling {rss_name} (fail count: {rss_combine.error_count}): {e}", level=LogLevel.ERROR)
                         if rss_combine.error_count == 3:
-                            self.log("📬 Notify user about fetch failure...", no_emoji=True)
+                            self.log("📬\tNotify user about fetch failure...", no_emoji=True)
                             msg = self.make_error_msg(rss_name, rss_combine.rss.config.url, e)
                             rss_combine.msgs_buffer.append(msg)
                     except Exception as e:
@@ -254,14 +253,14 @@ class App:
                 next_check_utc = datetime.now(timezone.utc) + remaining
                 next_check_str = NotifyConfig.format_dt(dt=next_check_utc, tz=self._config.timezone)
                 # 打印信息并等待
-                self.log(f"🕒 Waiting {sleep_seconds:.2f}s... Next check at {next_check_str}", no_emoji=True)
+                self.log(f"🕒\tWaiting {sleep_seconds:.2f}s... Next check at {next_check_str}", no_emoji=True)
                 # Save the check time to file
                 self.save_fetch_time()
                 # sleep
                 self._stop_event.wait(timeout=sleep_seconds)
                 self.check_config_and_load()
         except KeyboardInterrupt:
-            self.log("🛑 Exiting...", no_emoji=True)
+            self.log("🛑\tExiting...", no_emoji=True)
         except Exception as e:
             self.log(f"Unknown error: {e}", level=LogLevel.ERROR)
 
@@ -270,11 +269,11 @@ class App:
             if not rss_combine.msgs_buffer:
                 continue
 
-            self.log(f"📤 Sending {len(rss_combine.msgs_buffer)} message(s) for {rss_name}...", no_emoji=True)
+            self.log(f"📤\tSending {len(rss_combine.msgs_buffer)} message(s) for {rss_name}...", no_emoji=True)
 
             failed_ids = set()
             for notify in rss_combine.notifies:
-                self.log(f"🔔 Sending {len(rss_combine.msgs_buffer)} message(s) to {notify.name}...", no_emoji=True)
+                self.log(f"🔔\tSending {len(rss_combine.msgs_buffer)} message(s) to {notify.name}...", no_emoji=True)
                 failed = notify.send(msgs=rss_combine.msgs_buffer, local_tz=self._config.timezone)
                 failed_ids.update(id(msg) for msg in failed)
 
@@ -325,5 +324,8 @@ if __name__ == "__main__":
 
     log_level_str = os.getenv("RSS_LOG_LEVEL") or args.log_level
     log_level = LogLevel.from_string(log_level_str) if log_level_str else None
-    app = App(cfg_file=args.config, cache_dir=cache_dir, log_level=log_level)
+    
+    cfg_file=args.config
+    print(f"{LogLevel.INFO.emoji}  Using config file: {cfg_file}")
+    app = App(cfg_file=cfg_file, cache_dir=cache_dir, log_level=log_level)
     app.run(interval=interval_sec)

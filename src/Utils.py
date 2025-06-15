@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
@@ -6,10 +5,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 import yaml
-from datetime import datetime
+from datetime import datetime, tzinfo
 import re
 from html import unescape
 from enum import Enum
+
 
 class LogLevel(Enum):
     SUCCESS = (100, "✅", "\033[32m")
@@ -54,16 +54,15 @@ class LogLevel(Enum):
     def to_color(self) -> str:
         return self.color
 
-    def warp(self, message: str, now: datetime = None, no_emoji: bool = False) -> str:
+    def warp(self, message: str, now: datetime = None, no_emoji: bool = False, tz: tzinfo = None) -> str:
         """
         Wraps the message with the log level's color and emoji.
         """
         if not no_emoji:
-            message= f"{self.emoji}  {message}"
-        now = now or datetime.now()
+            message = f"{self.emoji}\t{message}"
+        now = now or datetime.now(tz=tz)
         timestamp = now.strftime("%Y-%m-%d %H:%M:%S %Z")
-        return f"{self.color}[{timestamp}] [{self.name:<7}] {message}{self.color_reset}"
-
+        return f"{self.color}[{timestamp:<23}] [{self.name:<7}] {message}{self.color_reset}"
 
 
 def clean_html(html: str) -> tuple[str, list[str]]:
@@ -71,15 +70,14 @@ def clean_html(html: str) -> tuple[str, list[str]]:
     清洗 HTML 标签，返回纯文本和图片链接列表
     """
     img_links = re.findall(r'<img[^>]+src="([^">]+)"', html)
-    text = re.sub(r'<br\s*/?>', '\n', html, flags=re.IGNORECASE)
-    text = re.sub(r'<[^>]+>', '', text)
+    text = re.sub(r"<br\s*/?>", "\n", html, flags=re.IGNORECASE)
+    text = re.sub(r"<[^>]+>", "", text)
     text = unescape(text).strip()
     return text, img_links
 
 
 @dataclass
 class _Config:
-
     @classmethod
     def load_from_dict(cls, dict_data: dict) -> _Config:
         return cls(**dict_data)
@@ -98,7 +96,7 @@ class _Config:
 
         if not cfg_file.exists():
             raise Exception(f"The cfg_file({cfg_file}) does not exist)")
-        with open(cfg_file, 'r', encoding='utf-8') as f:
+        with open(cfg_file, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f)
         return data
 
@@ -112,7 +110,7 @@ class Msg:
     images: list[str] = field(default_factory=list)
     authors: list[str] = field(default_factory=list)
     contents: dict[str, str] = field(default_factory=dict)
-    msg_type: str = 'normal'
+    msg_type: str = "normal"
 
     def __post_init__(self) -> None:
         des, img_links = clean_html(self.description)
@@ -121,16 +119,16 @@ class Msg:
 
     def __str__(self) -> str:
         _str = ""
-        content_splitter = '\n' + '=' * 5 + ' CONTENTS ' + '=' * 5 + '\n'
+        content_splitter = "\n" + "=" * 5 + " CONTENTS " + "=" * 5 + "\n"
 
         def fmt(k, v):
             return f"{k.ljust(10)}: {v}\n"
 
         for key, value in self.__dict__.items():
-            if key == 'pub_date':
+            if key == "pub_date":
                 if self.pub_date:
                     _str += fmt("PubDate", self.pub_date)
-            elif key == 'contents':
+            elif key == "contents":
                 if isinstance(value, dict) and value:
                     _str += content_splitter
                     for key2, value2 in value.items():
