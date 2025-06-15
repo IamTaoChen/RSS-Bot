@@ -296,7 +296,7 @@ class App:
         tmp_config: Config = Config.load_from_yaml(cfg_file=self.cfg_file)
         if self._config != tmp_config:
             self.log(msg=4, is_spliter=True, log_anyway=True)
-            self.log("Config file changed, reloading...", level=LogLevel.WARNING)
+            self.log("Config file changed, reloading...", level=LogLevel.WARNING, log_anyway=True)
             self._config = tmp_config
             self._init_rss_()
             self.log("Config file reloaded successfully.", level=LogLevel.SUCCESS)
