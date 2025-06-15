@@ -10,6 +10,8 @@ import argparse
 from pathlib import Path
 from random import randint
 import json
+import signal
+import threading
 
 
 @dataclass
@@ -33,6 +35,9 @@ class App:
     color_reset = "\033[0m"
 
     def __init__(self, cfg_file: str, cache_dir: str = "./cache"):
+        self._stop_event = threading.Event()
+        signal.signal(signal.SIGTERM, self.signal_handler)
+        signal.signal(signal.SIGINT, self.signal_handler)
         self.verbose = True
         self.log(f"App parsing config file: {cfg_file}")
         self._cfg_file = Path(cfg_file)
@@ -64,6 +69,11 @@ class App:
     @property
     def fetch_time_file(self) -> Path:
         return self.cache_dir / "fetch_time.json"
+
+    def signal_handler(self, signum, frame):
+        self.log(f"⚠️ Received signal {signum}, shutting down gracefully...", level="WARNING")
+        self.save_fetch_time()
+        self._stop_event.set()
 
     def save_fetch_time(self) -> None:
         data = {k: v.isoformat() for k, v in self.fetch_time_utc.items()}
@@ -153,7 +163,7 @@ class App:
     def run(self, interval: int = 60):
         self.print_split(order=0)
         try:
-            while True:
+            while not self._stop_event.is_set():
                 t0 = datetime.now(tz=timezone.utc)
                 self.print_split(order=1)
                 for rss_name, rss_combine in self.rss.items():
@@ -203,7 +213,7 @@ class App:
                 # Save the check time to file
                 self.save_fetch_time()
                 # sleep
-                sleep(sleep_seconds)
+                self._stop_event.wait(timeout=sleep_seconds)
                 self.check_config_and_load()
         except KeyboardInterrupt:
             self.log("🛑 Exiting...")
