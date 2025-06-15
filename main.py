@@ -290,7 +290,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--config", required=False, help="Path to config YAML file", default="./config.yaml")
     parser.add_argument("-d", "--cache-dir", required=False, help="Path to cache dir", default="/tmp/rss_cache")
-    parser.add_argument("-l", "--log-level", required=False, help="Log level", default="WARNING")
+    parser.add_argument("-l", "--log-level", required=False, help="Log level", default=None)
     parser.add_argument("-i", "--interval", type=int, required=False, help="Polling interval in seconds", default=None)
     args = parser.parse_args()
 
@@ -302,12 +302,9 @@ if __name__ == "__main__":
     if not Path(cache_dir).exists():
         Path(cache_dir).mkdir(parents=True, exist_ok=True)
 
-    log_level_env = os.getenv("RSS_LOG_LEVEL")
-    log_level = args.log_level if args.log_level else log_level_env if log_level_env else None
-    log_level = LogLevel[log_level.upper()] if isinstance(log_level, str) else log_level
-    if not isinstance(log_level, LogLevel) or log_level is not None:
-        print(f"Unknown log level: {log_level}, fallback to INFO")
-        log_level = LogLevel.INFO
+    log_level_str = os.getenv("RSS_LOG_LEVEL") or args.log_level
+    log_level = LogLevel.from_string(log_level_str) if log_level_str else None
+    
     app = App(cfg_file=args.config, cache_dir=cache_dir)
     if log_level:
         app._config.log_cfg.level = log_level
