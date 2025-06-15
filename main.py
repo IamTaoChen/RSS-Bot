@@ -53,8 +53,9 @@ class App:
         # Skip if below log threshold
         if level.value < current_level.value and not log_anyway:
             return
-        if is_spliter and log_cfg.to_console:
-            self.print_split(order=msg if isinstance(msg, int) else 0)
+        if is_spliter:
+            if log_cfg.to_console:
+                self.print_split(order=msg if isinstance(msg, int) else 0)
             return
         # Format time
         tz = self._config.timezone or timezone.utc
