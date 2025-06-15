@@ -73,8 +73,8 @@ class App:
 
         # Format time
         tz = self._config.timezone or timezone.utc
-        now = datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S %Z")
-        formatted_msg = f"[{now}] [{level.name:<7}] {msg}"
+        now = datetime.now(tz)
+        formatted_msg = f"[{now.strftime('%Y-%m-%d %H:%M:%S %Z')}] [{level.name:<7}] {msg}"
 
         # Print to console
         if log_cfg.to_console or level in (LogLevel.ERROR, LogLevel.SUCCESS) or force_only_to_console:
