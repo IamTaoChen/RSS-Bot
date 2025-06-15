@@ -52,7 +52,7 @@ class App:
     def cfg_file(self) -> str:
         return self._cfg_file
 
-    def log(self, msg: str | int, level: str | LogLevel = LogLevel.INFO, is_spliter: bool = False) -> None:
+    def log(self, msg: str | int, level: str | LogLevel = LogLevel.INFO, is_spliter: bool = False, force_only_to_console: bool = False) -> None:
         # Convert to LogLevel
         level = LogLevel.from_string(level)
         log_cfg = self._config.log_cfg
@@ -67,7 +67,7 @@ class App:
         formatted_msg = f"[{now}] [{level.name:<7}] {msg}"
 
         # Print to console
-        if log_cfg.to_console or level == LogLevel.ERROR or level == LogLevel.SUCCESS:
+        if log_cfg.to_console or level in (LogLevel.ERROR, LogLevel.SUCCESS) or force_only_to_console:
             if is_spliter:
                 self.print_split(order=msg if isinstance(msg, int) else 0)
                 return
@@ -77,20 +77,40 @@ class App:
 
         if is_spliter:
             return
-        
+        if log_cfg.file is None or force_only_to_console:
+            return
         # Write to file
-        if log_cfg.file.is_dir():
-            date_str = datetime.now(tz).strftime("%Y-%m-%d")
-            filename = log_cfg.file / f"{date_str}.log"
-        else:
-            filename = log_cfg.file
+        filename = self.prepare_logfile(now=now)
         try:
             filename.parent.mkdir(parents=True, exist_ok=True)
             with open(filename, "a", encoding="utf-8") as f:
                 f.write(formatted_msg + "\n")
         except Exception as e:
-            color = self.color_map.get(LogLevel.ERROR, "")
-            print(f"{color}[ERROR] Failed to write log to {filename}: {e}\033[0m")
+            self.log(f"❗ Failed to write log to file {filename}: {e}", level=LogLevel.ERROR, force_only_to_console=True)
+
+    def prepare_logfile(self, now: datetime | None = None) -> Path:
+        log_file = self._config.log_cfg.file
+        if not log_file:
+            return None
+        tz = self._config.timezone or timezone.utc
+        filename = log_file
+        if log_file.is_dir():
+            filename = log_file / "rss.log"
+            now = now or datetime.now(tz)
+            today_str = now.strftime("%Y-%m-%d")
+            if filename.exists():
+                last_modified = datetime.fromtimestamp(filename.stat().st_mtime, tz)
+                last_modified_str = last_modified.strftime("%Y-%m-%d")
+                if last_modified_str != today_str:
+                    rotated_name = filename.parent / f"rss-{last_modified_str}.log"
+                    if rotated_name.exists():
+                        timestamp_ms = int(now.timestamp() * 1000)
+                        rotated_name = filename.parent / f"rss-{last_modified_str}-{timestamp_ms}.log"
+                    try:
+                        filename.rename(rotated_name)
+                    except Exception as e:
+                        self.log(f"Failed to rotate log file {filename} to {rotated_name}: {e}", level=LogLevel.ERROR, force_only_to_console=True)
+        return filename
 
     @property
     def fetch_time_file(self) -> Path:
