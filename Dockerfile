@@ -7,7 +7,8 @@ RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 RUN addgroup --gid 1000 rss && \
-    adduser --uid 1000 --ingroup rss --disabled-password --gecos "" rss
+    adduser --uid 1000 --ingroup rss --disabled-password --gecos "" rss && \
+    chown -R rss:rss /app
 
 COPY ./src ./src
 COPY main.py .
