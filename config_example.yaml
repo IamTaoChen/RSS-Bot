@@ -1,5 +1,14 @@
 timezone: Asia/Shanghai
 
+other_tz:
+  New_York: "America/New_York"
+  Chicago: "America/Chicago"
+
+log:
+  level: info
+  file: /tmp/rss/logs
+  to_console: true
+  
 ai:
   ai_type: openai
   api_key: sk-proj-xxxx
