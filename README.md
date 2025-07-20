@@ -6,6 +6,8 @@ This project was created for my personal use to extract messages from [x.com](ht
 
 ## How to Use
 
+### Docker
+
 1. Copy the example configuration:
 
    ```bash
@@ -16,4 +18,31 @@ This project was created for my personal use to extract messages from [x.com](ht
 
    ```bash
    docker compose up -d
+   ```
+
+### Local
+
+1. Create a Python virtual environment:
+
+   ```bash
+   python3 -m venv venv
+   source ./venv/bin/activate
+   ```
+
+2. Install the required packages:
+
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. Copy the example configuration:
+
+   ```bash
+   cp config_example.yaml config.yaml
+   ```
+
+4. Run the application:
+
+   ```bash
+   python3 main.py
    ```
