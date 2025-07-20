@@ -39,6 +39,7 @@ class Config(_Config):
     notifies: dict[str, NotifyConfig] = field(default_factory=dict)
     timezone: tzinfo = field(default=None)
     other_tz: dict[str, tzinfo] = field(default_factory=dict)
+    translate_to: str | None = None  # If not None, it will add prompts to translate the AI response to this language
 
     @classmethod
     def load_from_dict(cls, dict_data: dict) -> "Config":
@@ -87,7 +88,8 @@ class Config(_Config):
         except TypeError as e:
             print(f"⚠️ : {e}")
             timezone: tzinfo = None
-        return cls(log_cfg=log_cfg, ai=ai_config, rss=rss_dict, rss_notify=rss_notify, rss_enable=rss_enable, rss_from_now=rss_from_now, notifies=notify_dict, timezone=timezone, other_tz=other_tz)
+        translate_to = dict_data.get("translate_to", None)
+        return cls(log_cfg=log_cfg, ai=ai_config, rss=rss_dict, rss_notify=rss_notify, rss_enable=rss_enable, rss_from_now=rss_from_now, notifies=notify_dict, timezone=timezone, other_tz=other_tz, translate_to=translate_to)
 
     def get_notfies_by_names(self, names: list[str] | str) -> list[NotifyConfig]:
         """

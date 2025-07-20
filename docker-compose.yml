@@ -3,13 +3,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: registry.kyzdt.com/tools/rss-bot:nightly
     container_name: rss-bot
     environment:
       RSS_INTERVAL: 120
     volumes:
       - ./config.yaml:/app/config.yaml:ro
       - cache:/tmp/rss_cache
-
 volumes:
   cache:
