@@ -9,6 +9,7 @@ from .Ai import AiAgent
 from .Utils import _Config, Msg, LogLevel
 from datetime import datetime, timezone
 import calendar
+import re
 
 
 class RssFetchErr(Exception):
@@ -51,6 +52,7 @@ class RssConfig(_Config):
     type: str = "rss"
     others: dict = field(default_factory=dict)
     prompts: str = None
+    filter_regex: str = None
 
     def __post_init__(self):
         if not self.name:
@@ -211,7 +213,8 @@ class Rss:
         if isinstance(items, RssItem):
             items = [items]
         msgs: list[Msg] = []
-        for item in items:
+        unmatched_items, matched_items = self.filter_items(items=items)
+        for item in unmatched_items:
             prompt_str = self.prompt(item=item, translate_to=self.translate_to, custom_prompt=self.config.prompts)
             if verbose:
                 print(LogLevel.DEBUG.warp(message=f"Summarizing item: {item.title}"))
@@ -226,8 +229,42 @@ class Rss:
                 link=item.link,
             )
             msgs.append(msg)
-
+        contents = (f"Item matches filter regex: {self.config.filter_regex}",)
+        for item in matched_items:
+            msg = Msg(
+                title=item.title,
+                authors=item.authors,
+                pub_date=item.pub_date,
+                description=item.description,
+                contents=contents,
+                link=item.link,
+            )
+            msgs.append(msg)
         return msgs
+
+    def filter_items(self, items: list[RssItem] | RssItem) -> tuple[list[RssItem], list[RssItem]]:
+        """
+        Filter items.
+        Parameters:
+            - items: A list of RssItem objects or a single RssItem object.
+
+        Returns:
+            - matched_items: List of items that match the filter regex.
+            - unmatched_items: List of items that do not match the filter regex.
+        """
+        if isinstance(items, RssItem):
+            items = [items]
+        if self.config.filter_regex is None:
+            return items, []
+        pattern = re.compile(self.config.filter_regex, re.IGNORECASE)
+        matched_items = []
+        unmatched_items = []
+        for item in items:
+            if pattern.search(item.title) or pattern.search(item.description):
+                matched_items.append(item)
+            else:
+                unmatched_items.append(item)
+        return matched_items, unmatched_items
 
 
 def get_newest_time(items: RssItem | list[RssItem]) -> datetime:
