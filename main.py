@@ -154,6 +154,8 @@ class App:
         for rss_name, rss_config in self._config.rss.items():
             self.log(msg=3, is_spliter=True)
             self.log(f"Initializing RSS feed: {rss_name} with the type {rss_config.type}")
+            if rss_config.filter_regex:
+                self.log(f"Filter regex for {rss_name}: {rss_config.filter_regex}")
             # refill the enable
             enable = self._config.rss_enable.get(rss_name, True)
             new_rss = create_rss(rss_config=rss_config, ai_agent=ai_agent, translate_to=translate_to, timeout=10, run_init=False)
