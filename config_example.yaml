@@ -29,6 +29,7 @@ rss:
     type: nitter
     enable: true
     description: ""
+    filter_regex: "\\[No Title\\].*" # filter the items by regex(keep the unmathed items), if None, it will not filter. 
     others:
       author: "elonmusk"
       public_url: https://x.com
