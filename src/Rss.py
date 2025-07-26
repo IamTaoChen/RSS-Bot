@@ -213,7 +213,9 @@ class Rss:
         if isinstance(items, RssItem):
             items = [items]
         msgs: list[Msg] = []
-        unmatched_items, matched_items = self.filter_items(items=items)
+        matched_items, unmatched_items = self.filter_items(items=items)
+        if verbose:
+            print(LogLevel.DEBUG.warp(message=f"Filter by {self.config.filter_regex}. Matched items: {len(matched_items)}, Unmatched items: {len(unmatched_items)}"))
         for item in unmatched_items:
             prompt_str = self.prompt(item=item, translate_to=self.translate_to, custom_prompt=self.config.prompts)
             if verbose:
@@ -255,7 +257,7 @@ class Rss:
         if isinstance(items, RssItem):
             items = [items]
         if self.config.filter_regex is None:
-            return items, []
+            return [], items
         pattern = re.compile(self.config.filter_regex, re.IGNORECASE)
         matched_items = []
         unmatched_items = []
