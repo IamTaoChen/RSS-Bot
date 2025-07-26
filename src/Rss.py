@@ -231,7 +231,7 @@ class Rss:
                 link=item.link,
             )
             msgs.append(msg)
-        contents = (f"Item matches filter regex: {self.config.filter_regex}",)
+        contents = f"Item matches filter regex: {self.config.filter_regex}"
         for item in matched_items:
             msg = Msg(
                 title=item.title,
