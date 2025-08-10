@@ -224,7 +224,7 @@ class App:
                     self.log(f"📡\tStart handling RSS - {rss_name} (since {date_str})", no_emoji=True)
 
                     try:
-                        new_rss_items = rss_combine.rss.get_items_since(since=rss_combine.last, fetch=True)
+                        new_rss_items = rss_combine.rss.get_items_since(since=rss_combine.last, fetch=True, newest_at_first=False)
                         self.log(f"📎\tFound {len(new_rss_items)} new item(s) for {rss_name}", no_emoji=True)
                         if new_rss_items:
                             self.log("🧠 Summarizing with AI agent...", no_emoji=True)

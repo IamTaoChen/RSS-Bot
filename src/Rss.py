@@ -89,12 +89,17 @@ class Rss:
     def items(self) -> list[RssItem]:
         return self._rss_items.copy()
 
-    def get_items_since(self, since: datetime, fetch: bool = False) -> list[RssItem]:
+    def get_items_since(self, since: datetime, fetch: bool = False, newest_at_first: bool = True) -> list[RssItem]:
         """
         Return all RssItems published after the given datetime.
-
         Handles both timezone-aware and naive datetimes by converting naive `since` to UTC.
         Ignores items without a valid pub_date.
+
+        :param since: datetime object to filter items published after this time.
+        :param fetch: if True, fetch the RSS feed before filtering.
+        :param newest_at_first: if True, return items in descending order of pub_date.
+
+        :return: list of RssItem objects published after the given datetime.
         """
         # Ensure `since` is timezone-aware (assume UTC if not)
         if since.tzinfo is None:
@@ -103,7 +108,10 @@ class Rss:
         if fetch:
             self.fetch()
         # Filter items with pub_date > since
-        return [item for item in self.items if item.pub_date and item.pub_date > since]
+        data = [item for item in self.items if item.pub_date and item.pub_date > since]
+        # sort by pub_date in descending order
+        data.sort(key=lambda x: x.pub_date, reverse=newest_at_first)
+        return data
 
     @classmethod
     def fetch_from_url(cls, rss_url: str, timeout_seconds: int = 60) -> list[RssItem]:
