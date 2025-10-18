@@ -47,6 +47,9 @@ class AiConfig(_Config):
                 raise ValueError("API key cannot be empty")
             if not self.api_url:
                 self.api_url = "https://api.x.ai/v1"
+        elif self.ai_type == AiType.CUSTOM:
+            if not self.api_url:
+                raise ValueError("API URL cannot be empty for CUSTOM AI type")
 
     @classmethod
     def load_from_dict(cls, dict_data: dict) -> AiConfig:
@@ -75,7 +78,7 @@ class AiAgent():
         try:
             if self._config.ai_type == AiType.OPENAI:
                 self.__client = openai.OpenAI(api_key=self._config.api_key)
-            elif self._config.ai_type == AiType.XAI:
+            else:
                 self.__client = openai.OpenAI(api_key=self._config.api_key, base_url=self._config.api_url)
             self.__init = True
         except:
