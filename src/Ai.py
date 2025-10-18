@@ -14,6 +14,7 @@ class AiType(Enum):
     Enum for AI types.
     """
     OPENAI = "openai"
+    XAI = "xai"
     CUSTOM = "custom"
 
 
@@ -41,6 +42,11 @@ class AiConfig(_Config):
                 raise ValueError("API key cannot be empty")
             if not self.api_url:
                 self.api_url = "https://api.openai.com/v1/chat/completions"
+        elif self.ai_type == AiType.XAI:
+            if not self.api_key:
+                raise ValueError("API key cannot be empty")
+            if not self.api_url:
+                self.api_url = "https://api.x.ai/v1"
 
     @classmethod
     def load_from_dict(cls, dict_data: dict) -> AiConfig:
@@ -69,6 +75,8 @@ class AiAgent():
         try:
             if self._config.ai_type == AiType.OPENAI:
                 self.__client = openai.OpenAI(api_key=self._config.api_key)
+            elif self._config.ai_type == AiType.XAI:
+                self.__client = openai.OpenAI(api_key=self._config.api_key, base_url=self._config.api_url)
             self.__init = True
         except:
             raise Exception("init ai agent failed")
