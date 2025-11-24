@@ -10,7 +10,7 @@ RUN addgroup --gid 1000 rss && \
     adduser --uid 1000 --ingroup rss --disabled-password --gecos "" rss && \
     chown -R rss:rss /app && \
     mkdir -p /tmp/rss_cache && \
-    chmod 777 /tmp/rss_cache
+    chown rss:rss /tmp/rss_cache
 
 COPY ./src ./src
 COPY main.py .
