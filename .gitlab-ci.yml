@@ -25,10 +25,10 @@ before_script:
 build_tag:
   stage: build
   script:
-    - docker build -t $DOCKER_IMAGE_NAME:latest -t $DOCKER_IMAGE_NAME:$CI_COMMIT_TAG -t $DOCKER_HUB_IMAGE_NAME:CI_COMMIT_TAG -t $DOCKER_HUB_IMAGE_NAME:latest .
+    - docker build -t $DOCKER_IMAGE_NAME:latest -t $DOCKER_IMAGE_NAME:$CI_COMMIT_TAG -t $DOCKER_HUB_IMAGE_NAME:$CI_COMMIT_TAG -t $DOCKER_HUB_IMAGE_NAME:latest .
     - docker push $DOCKER_IMAGE_NAME:latest
     - docker push $DOCKER_IMAGE_NAME:$CI_COMMIT_TAG
-    - docker push $DOCKER_HUB_IMAGE_NAME:$CI_COMMIT_TAG
+    - docker push $DOCKER_HUB_IMAGE_NAME:$latest
     - docker push $DOCKER_HUB_IMAGE_NAME:$CI_COMMIT_TAG
   rules:
     - if: $CI_COMMIT_TAG =~ /^v/  # 仅当 Tag 以 xv 开头时运行
