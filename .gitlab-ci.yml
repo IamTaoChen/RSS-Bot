@@ -12,20 +12,24 @@ variables:
   DOCKER_DRIVER: overlay2
   DOCKER_TLS_CERTDIR: ""
   DOCKER_IMAGE_NAME: $CI_REGISTRY_IMAGE
+  DOCKER_HUB_IMAGE_NAME: $DOCKER_HUB_USER/rss-bot
 
 stages:
   - build
 
 before_script:
   - echo "$CI_REGISTRY_PASSWORD" | docker login $CI_REGISTRY -u "$CI_REGISTRY_USER" --password-stdin
+  - docker login -u "$DOCKER_HUB_USER" -p "$DOCKER_HUB_TOKEN"
 
 # Build for tag
 build_tag:
   stage: build
   script:
-    - docker build -t $DOCKER_IMAGE_NAME:latest -t $DOCKER_IMAGE_NAME:$CI_COMMIT_TAG .
+    - docker build -t $DOCKER_IMAGE_NAME:latest -t $DOCKER_IMAGE_NAME:$CI_COMMIT_TAG -t $DOCKER_HUB_IMAGE_NAME:CI_COMMIT_TAG -t $DOCKER_HUB_IMAGE_NAME:latest .
     - docker push $DOCKER_IMAGE_NAME:latest
     - docker push $DOCKER_IMAGE_NAME:$CI_COMMIT_TAG
+    - docker push $DOCKER_HUB_IMAGE_NAME:$CI_COMMIT_TAG
+    - docker push $DOCKER_HUB_IMAGE_NAME:$CI_COMMIT_TAG
   rules:
     - if: $CI_COMMIT_TAG =~ /^v/  # 仅当 Tag 以 xv 开头时运行
 
@@ -33,8 +37,9 @@ build_tag:
 build_branch:
   stage: build
   script:
-    - docker build -t $DOCKER_IMAGE_NAME:nightly .
+    - docker build -t $DOCKER_IMAGE_NAME:nightly -t $DOCKER_HUB_IMAGE_NAME:nightly .
     - docker push $DOCKER_IMAGE_NAME:nightly
+    - docker push $DOCKER_HUB_IMAGE_NAME:nightly
   rules:
     - if: $CI_COMMIT_BRANCH == "main"  # 仅在分支为 xboard 时运行
       # when: manual  # 设置为手动触发
