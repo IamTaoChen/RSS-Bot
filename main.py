@@ -22,6 +22,7 @@ class RssMain:
     notifies: list[NotifyConfig] = field(default_factory=list)
     error_count: int = 0
     msgs_buffer: list[Msg] = field(default_factory=list)
+    last_error: datetime = None
 
 
 class App:
@@ -127,10 +128,11 @@ class App:
                 data = json.load(f)
                 for rss_name, last_time_str in data.items():
                     self.fetch_time_utc[rss_name] = datetime.fromisoformat(last_time_str)
-                self.log(f"Loaded last check time from {self.fetch_time_file}", level="DEBUG")
-                self.log(f"Last fetch times: {self.fetch_time_utc}", level="DEBUG")
+                self.log(f"Loaded last check time from {self.fetch_time_file}", level=LogLevel.DEBUG)
+                self.log(f"Last fetch times: {self.fetch_time_utc}", level=LogLevel.DEBUG)
             except json.JSONDecodeError as e:
                 self.log(f"Failed to load fetch time JSON: {e}", level=LogLevel.ERROR)
+                self.log("Using current time for all RSS feeds.", level=LogLevel.WARNING)
 
     def print_split(self, order: int = 0):
         symbol = "="
