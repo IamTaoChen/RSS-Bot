@@ -172,7 +172,8 @@ class App:
                     if logged_last_time is None:
                         self.log(f"RSS feed {rss_name} has no last fetch time logged, will fetch from now.", level=LogLevel.WARNING)
                         logged_last_time = last
-                        self.fetch_time_utc[rss_name] = last
+                        if enable:
+                            self.fetch_time_utc[rss_name] = last
                     else:
                         self.log(f"RSS feed {rss_name} will fetch from the last time which is logged at file, not from now.", level=LogLevel.INFO)
                     last = logged_last_time
