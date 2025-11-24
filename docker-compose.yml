@@ -8,6 +8,6 @@ services:
       RSS_INTERVAL: 120
     volumes:
       - ./config.yaml:/app/config.yaml:ro
-      - cache:/tmp/rss_cache
-volumes:
-  cache:
+#       - cache:/tmp/rss_cache
+# volumes:
+#   cache:
