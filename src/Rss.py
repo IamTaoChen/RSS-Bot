@@ -237,7 +237,7 @@ class Rss:
                 description=item.description,
                 contents=format_reply,
                 link=item.link,
-                is_markdown=self._ai_agent._is_markdown
+                _is_markdown=self._ai_agent._is_markdown
             )
             msgs.append(msg)
         contents = f"Item matches filter regex: {self.config.filter_regex}"
