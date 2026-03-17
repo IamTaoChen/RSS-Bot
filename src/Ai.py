@@ -55,6 +55,10 @@ class AiConfig(_Config):
     def load_from_dict(cls, dict_data: dict) -> AiConfig:
         return cls(**dict_data)
 
+    @property
+    def _is_markdown(self) -> bool:
+        return self.ai_type in [AiType.XAI]
+
 
 class AiAgent():
     def __init__(self, ai_config: AiConfig):
@@ -71,6 +75,10 @@ class AiAgent():
     @property
     def client(self) -> openai.OpenAI:
         return self.__client
+
+    @property
+    def _is_markdown(self) -> bool:
+        return self._config._is_markdown
 
     def init(self) -> None:
         if self.__init:

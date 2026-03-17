@@ -3,3 +3,4 @@ feedparser
 openai
 requests
 PyYAML
+markdown

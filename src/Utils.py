@@ -111,6 +111,7 @@ class Msg:
     authors: list[str] = field(default_factory=list)
     contents: dict[str, str] = field(default_factory=dict)
     msg_type: str = "normal"
+    _is_markdown: bool = False
 
     def __post_init__(self) -> None:
         des, img_links = clean_html(self.description)

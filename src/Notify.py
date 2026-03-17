@@ -8,6 +8,7 @@ from .Utils import _Config, Msg
 from abc import ABC, abstractmethod
 import requests
 import time
+import markdown
 
 SESSION = requests.Session()
 
@@ -76,6 +77,45 @@ class MatrixConfig(NotifyConfig):
 
         return res.status_code == 200
 
+    def _render_content(self, content: str, html: bool = False, is_markdown: bool = False) -> str:
+        """Render a single content block (text or markdown)."""
+        if not content:
+            return ""
+        content = content.strip()
+        if is_markdown and html:
+            return markdown.markdown(content, extensions=['extra', 'toc', 'tables'])
+        elif html and not is_markdown:
+            return "\n".join(line.strip() + "<br>" for line in content.splitlines()) + "<br>"
+        else:
+            return content
+
+    def _render_contents(self, msg: Msg, html: bool = False) -> str:
+        """Render the contents section based on content type and format."""
+        if not msg.contents:
+            return ""
+        
+        lines = []
+        lines.append("<h3>📦 Contents</h3><br>" if html else "===== CONTENTS =====\n")
+        
+        if isinstance(msg.contents, dict):
+            for k, v in msg.contents.items():
+                rendered = self._render_content(v, html=html, is_markdown=msg._is_markdown)
+                if html:
+                    if msg._is_markdown:
+                        lines.append(f"<b>{k}</b><br>{rendered}<br><br>")
+                    else:
+                        lines.append(f"<b>{k}</b><br><pre>{v.strip()}</pre><br><br>")
+                else:
+                    lines.append(f"{k}:\n{v.strip()}\n\n")
+        elif isinstance(msg.contents, str):
+            rendered = self._render_content(msg.contents, html=html, is_markdown=msg._is_markdown)
+            if html:
+                lines.append(rendered + "<br>" if msg._is_markdown else rendered)
+            else:
+                lines.append(msg.contents.strip() + "\n")
+        
+        return "".join(lines) if html else "\n".join(lines)
+    
     def msg2str(self, msg: Msg, html: bool = False, local_tz: tzinfo = None) -> str:
         lines = []
 
@@ -122,22 +162,7 @@ class MatrixConfig(NotifyConfig):
                 lines.append(fmt("Images", ", ".join(msg.images)))
 
         # Contents
-        if msg.contents:
-            lines.append("<h3>📦 Contents</h3><br>" if html else "===== CONTENTS =====\n")
-            if isinstance(msg.contents, dict):
-                for k, v in msg.contents.items():
-                    if html:
-                        lines.append(f"<b>{k}</b><br><pre>{v.strip()}</pre><br><br>")
-                    else:
-                        lines.append(f"{k}:\n{v.strip()}\n\n")
-            elif isinstance(msg.contents, str):
-                content_text = msg.contents.strip()
-                if html:
-                    for line in content_text.splitlines():
-                        lines.append(line.strip() + "<br>")
-                    lines.append("<br>")
-                else:
-                    lines.append(content_text + "\n")
+        lines.append(self._render_contents(msg, html=html))
 
         lines.append("<div style='color:#888; font-size:small;'>— End —</div><br><br>" if html else "=" * 40 + "\n")
 
