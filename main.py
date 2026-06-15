@@ -293,7 +293,7 @@ class App:
                 self.log(f"Notify {notify_name} not found in config, skipping messages for it.", level=LogLevel.WARNING)
                 continue
             failed = notify.send(msgs=list(msgs), local_tz=self._config.timezone)
-            self._send_cache.replace_msgs(notify_name=notify_name, msgs=failed, save=True)
+            self._send_cache.replace_msgs(notify=notify_name, msgs=failed, save=True)
             if len(failed) > 0:
                 self.log(f"{len(failed)} message(s) failed to send to {notify_name} and will be retried.", level=LogLevel.WARNING)
             else:
