@@ -261,8 +261,9 @@ class App:
                     except Exception as e:
                         self.log(f"Unknown error while handling {rss_name}: {e}", level=LogLevel.ERROR)
                     self._send_cache.append_msgs(notifies=notify_names, msgs=msgs)
-                    self.send()
                     self.log(msg=2, is_spliter=True)
+                self.log("Finished handling all RSS feeds, start sending messages in cache...", no_emoji=True)
+                self.send()
                 self.log(msg=1, is_spliter=True)
                 # Calculate elapsed time and remaining sleep time
                 elapsed = datetime.now(tz=timezone.utc) - t0
@@ -285,6 +286,7 @@ class App:
 
     def send(self) -> None:
         if self._send_cache.empty:
+            self.log("No messages to send, skipping...", no_emoji=True)
             return
         for notify_name, msgs in self._send_cache.caches.items():
             self.log(f"📤\t{len(msgs)} message(s) waiting to be sent to {notify_name}...", no_emoji=True)
