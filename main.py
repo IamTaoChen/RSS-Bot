@@ -231,6 +231,9 @@ class App:
 
     def run(self, interval: int = 60):
         self.log(msg=0, is_spliter=True, log_anyway=True)
+        if not self.send_cache.empty:
+            self.log(f"Found {self.send_cache.total} unsent message(s) in cache for {len(self.send_cache.stats)} notify(s). Will attempt to send them before starting the fetch loop.", level=LogLevel.WARNING, log_anyway=True)
+            self.send()
         self.log(f"Starting RSS fetcher every {interval} seconds", log_anyway=True)
         try:
             while not self._stop_event.is_set():
