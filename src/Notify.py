@@ -73,7 +73,6 @@ class MatrixConfig(NotifyConfig):
         txn_id = str(int(time.time() * 1000))
         url = f"{self.homeserver}/_matrix/client/r0/rooms/{self.room_id}/send/m.room.message/{txn_id}"
         headers = {"Authorization": f"Bearer {self.token}"}
-        res = SESSION.put(url, headers=headers, json=payload)
         try:
             res = SESSION.put(url, headers=headers, json=payload)
             if debug:
