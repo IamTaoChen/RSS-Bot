@@ -296,7 +296,7 @@ class App:
             self._send_cache.replace_msgs(notify=notify_name, msgs=failed, save=True)
             if len(failed) > 0:
                 self.log(f"{len(failed)} message(s) failed to send to {notify_name} and will be retried.", level=LogLevel.WARNING)
-            else:
+            elif len(msgs) > 0:
                 self.log(f"All messages sent to {notify_name} successfully.", level=LogLevel.SUCCESS)
 
     def check_config_and_load(self) -> None:
