@@ -20,7 +20,7 @@ class NotifyConfig(_Config, ABC):
     name: str = None
     tz: dict[str, tzinfo] = None
 
-    def send(self, msgs: Msg | list[Msg], use_html: bool = True, local_tz: tzinfo = None) -> list[Msg]:
+    def send(self, msgs: Msg | list[Msg], use_html: bool = True, local_tz: tzinfo = None, debug: bool = False) -> list[Msg]:
         """
         Send messages. Return the list of messages that failed to send.
         """
@@ -32,7 +32,7 @@ class NotifyConfig(_Config, ABC):
         failed_msgs = []
         for msg in msgs:
             try:
-                if not self.send_core(msg=msg, use_html=use_html, local_tz=local_tz):
+                if not self.send_core(msg=msg, use_html=use_html, local_tz=local_tz, debug=debug):
                     failed_msgs.append(msg)
             except Exception as e:
                 print(f"❌ Exception while sending message '{msg.title}': {e}")
@@ -41,7 +41,7 @@ class NotifyConfig(_Config, ABC):
         return failed_msgs
 
     @abstractmethod
-    def send_core(self, msg: Msg, use_html: bool = True, local_tz: tzinfo = None) -> bool:
+    def send_core(self, msg: Msg, use_html: bool = True, local_tz: tzinfo = None, debug: bool = False) -> bool:
         pass
 
     def msg2str(self, msg: Msg, html: bool = False, local_tz: tzinfo = None) -> str:
@@ -60,7 +60,7 @@ class MatrixConfig(NotifyConfig):
     homeserver: str
     room_id: str
 
-    def send_core(self, msg: Msg, use_html: bool = True, local_tz: tzinfo = None) -> bool:
+    def send_core(self, msg: Msg, use_html: bool = True, local_tz: tzinfo = None, debug: bool = False) -> bool:
         if use_html is None:
             use_html = True
         body = self.msg2str(msg, html=use_html, local_tz=local_tz)
@@ -74,8 +74,14 @@ class MatrixConfig(NotifyConfig):
         url = f"{self.homeserver}/_matrix/client/r0/rooms/{self.room_id}/send/m.room.message/{txn_id}"
         headers = {"Authorization": f"Bearer {self.token}"}
         res = SESSION.put(url, headers=headers, json=payload)
-
-        return res.status_code == 200
+        try:
+            res = SESSION.put(url, headers=headers, json=payload)
+            if debug:
+                print("status:", res.status_code, "response:", res.text)
+            return res.status_code == 200
+        except Exception as e:
+            print("request failed:", e)
+            return False
 
     def _render_content(self, content: str, html: bool = False, is_markdown: bool = False) -> str:
         """Render a single content block (text or markdown)."""
@@ -93,10 +99,10 @@ class MatrixConfig(NotifyConfig):
         """Render the contents section based on content type and format."""
         if not msg.contents:
             return ""
-        
+
         lines = []
         lines.append("<h3>📦 Contents</h3><br>" if html else "===== CONTENTS =====\n")
-        
+
         if isinstance(msg.contents, dict):
             for k, v in msg.contents.items():
                 rendered = self._render_content(v, html=html, is_markdown=msg._is_markdown)
@@ -113,9 +119,9 @@ class MatrixConfig(NotifyConfig):
                 lines.append(rendered + "<br>" if msg._is_markdown else rendered)
             else:
                 lines.append(msg.contents.strip() + "\n")
-        
+
         return "".join(lines) if html else "\n".join(lines)
-    
+
     def msg2str(self, msg: Msg, html: bool = False, local_tz: tzinfo = None) -> str:
         lines = []
 

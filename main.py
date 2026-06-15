@@ -52,6 +52,10 @@ class App:
         self._init_rss_()
 
     @property
+    def debug(self) -> bool:
+        return self._config.log_cfg.level == LogLevel.DEBUG
+
+    @property
     def send_cache(self) -> SendCache:
         return self._send_cache
 
@@ -232,7 +236,8 @@ class App:
     def run(self, interval: int = 60):
         self.log(msg=0, is_spliter=True, log_anyway=True)
         if not self.send_cache.empty:
-            self.log(f"Found {self.send_cache.total} unsent message(s) in cache for {len(self.send_cache.stats)} notify(s). Will attempt to send them before starting the fetch loop.", level=LogLevel.WARNING, log_anyway=True)
+            self.log(f"Found {self.send_cache.total} unsent message(s) in cache for {len(self.send_cache.stats)} notify(s). Will attempt to send them before starting the fetch loop.",
+                     level=LogLevel.WARNING, log_anyway=True)
             self.send()
         self.log(f"Starting RSS fetcher every {interval} seconds", log_anyway=True)
         try:
@@ -310,7 +315,7 @@ class App:
                 self.log(f"Notify {notify_name} not found in config, skipping messages for it.", level=LogLevel.WARNING)
                 continue
             self.log(f"Sending {len(msgs)} messages to {notify_name}", level=LogLevel.DEBUG)
-            failed = notify.send(msgs=list(msgs), local_tz=self._config.timezone)
+            failed = notify.send(msgs=list(msgs), local_tz=self._config.timezone, debug=self.debug)
             if len(failed) != len(msgs):
                 self.send_cache.replace_msgs(notify=notify_name, msgs=failed, save=True)
             if len(failed) > 0:
@@ -368,7 +373,7 @@ if __name__ == "__main__":
 
     log_level_str = os.getenv("RSS_LOG_LEVEL") or args.log_level
     log_level = LogLevel.from_string(log_level_str) if log_level_str else None
-    
+
     send_cache_only = args.send_cache
 
     cfg_file = args.config
