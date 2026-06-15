@@ -1,8 +1,9 @@
 from src.Config import Config
-from src.Utils import LogLevel
+from src.Utils import LogLevel, to_list
 from src.Rss import Rss, RssFetchErr, get_newest_time
 from src.Ai import AiAgent
 from src.Notify import NotifyConfig, Msg
+from src.Cache import SendCache
 from src import create_rss
 from datetime import datetime, timezone, timedelta
 from dataclasses import dataclass, field
@@ -19,10 +20,15 @@ class RssMain:
     rss: Rss = None
     enable: bool = True
     last: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    notifies: list[NotifyConfig] = field(default_factory=list)
+    notifiy_names: list[str] = field(default_factory=list)
     error_count: int = 0
-    msgs_buffer: list[Msg] = field(default_factory=list)
     last_error: datetime = None
+
+    def __post_init__(self):
+        if self.notifiy_names is None:
+            self.notifiy_names = []
+        else:
+            self.notifiy_names = to_list(self.notifiy_names)
 
 
 class App:
@@ -39,6 +45,7 @@ class App:
         self.rss: dict[str, RssMain] = {}
         self.cache_dir: Path = Path(cache_dir)
         self.fetch_time_utc: dict[str, datetime] = {}
+        self._send_cache = SendCache(file_path=self.cache_dir / "send_cache.json")
         self.load_fetch_time()
         self._init_rss_()
 
@@ -189,13 +196,13 @@ class App:
                 self.log(f"No notify found for {rss_name}, please check the config file.", level=LogLevel.WARNING)
             else:
                 self.log(f"Found {len(notifies)} notify(s) for {rss_name}: {', '.join(notifies_names)}")
-            rss_main.notifies = notifies
+            rss_main.notifiy_names = notifies_names
             rss_main.enable = enable
             new_rss_dict[rss_name] = rss_main
             if not enable:
                 self.log(f"RSS feed {rss_name} is disabled, it will not be fetched.", level=LogLevel.WARNING)
             else:
-                msg = f"RSS feed {rss_name} initialized with {len(rss_main.notifies)} notify(s) and last fetch time {NotifyConfig.format_dt(dt=rss_main.last, tz=self._config.timezone)}"
+                msg = f"RSS feed {rss_name} initialized with {len(rss_main.notifiy_names)} notify(s) and last fetch time {NotifyConfig.format_dt(dt=rss_main.last, tz=self._config.timezone)}"
                 self.log(msg, level=LogLevel.SUCCESS)
         self.rss = new_rss_dict
         self.log(msg=3, is_spliter=True)
@@ -226,7 +233,8 @@ class App:
                         continue
                     date_str = NotifyConfig.format_dt(dt=rss_combine.last, tz=self._config.timezone)
                     self.log(f"📡\tStart handling RSS - {rss_name} (since {date_str})", no_emoji=True)
-
+                    notify_names = rss_combine.notifiy_names
+                    msgs = list()
                     try:
                         new_rss_items = rss_combine.rss.get_items_since(since=rss_combine.last, fetch=True, newest_at_first=False)
                         self.log(f"📎\tFound {len(new_rss_items)} new item(s) for {rss_name}", no_emoji=True)
@@ -235,7 +243,6 @@ class App:
                             self.rss[rss_name].last = get_newest_time(new_rss_items)
                             summarized_verbose = self._config.log_cfg.level == LogLevel.DEBUG
                             msgs = rss_combine.rss.summarize(items=new_rss_items, verbose=summarized_verbose)
-                            rss_combine.msgs_buffer.extend(msgs)
                             if not summarized_verbose:
                                 for item in msgs:
                                     pub_date_str = NotifyConfig.format_dt(dt=item.pub_date, tz=self._config.timezone)
@@ -243,16 +250,17 @@ class App:
                         if rss_combine.error_count > 0:
                             self.log(f"✅\t{rss_name} is back online after {rss_combine.error_count} failed attempts.", no_emoji=True)
                             rss_combine.error_count = 0
-                            rss_combine.msgs_buffer = [msg for msg in rss_combine.msgs_buffer if msg.msg_type != "error"]
+                            msgs = [msg for msg in msgs if msg.msg_type != "error"]
+                        self.fetch_time_utc[rss_name] = rss_combine.last
                     except RssFetchErr as e:
                         rss_combine.error_count += 1
                         self.log(f"Error while handling {rss_name} (fail count: {rss_combine.error_count}): {e}", level=LogLevel.ERROR)
                         if rss_combine.error_count == 3:
                             self.log("📬\tNotify user about fetch failure...", no_emoji=True)
-                            msg = self.make_error_msg(rss_name, rss_combine.rss.config.url, e)
-                            rss_combine.msgs_buffer.append(msg)
+                            msgs.append(self.make_error_msg(rss_name, rss_combine.rss.config.url, e))
                     except Exception as e:
                         self.log(f"Unknown error while handling {rss_name}: {e}", level=LogLevel.ERROR)
+                    self._send_cache.append_msgs(notifies=notify_names, msgs=msgs)
                     self.send()
                     self.log(msg=2, is_spliter=True)
                 self.log(msg=1, is_spliter=True)
@@ -276,23 +284,20 @@ class App:
             self.log(f"Unknown error: {e}", level=LogLevel.ERROR)
 
     def send(self) -> None:
-        for rss_name, rss_combine in self.rss.items():
-            if not rss_combine.msgs_buffer:
+        if self._send_cache.empty:
+            return
+        for notify_name, msgs in self._send_cache.caches.items():
+            self.log(f"📤\t{len(msgs)} message(s) waiting to be sent to {notify_name}...", no_emoji=True)
+            notify = self._config.notifies.get(notify_name, None)
+            if not notify:
+                self.log(f"Notify {notify_name} not found in config, skipping messages for it.", level=LogLevel.WARNING)
                 continue
-
-            self.log(f"📤\tSending {len(rss_combine.msgs_buffer)} message(s) for {rss_name}...", no_emoji=True)
-
-            failed_ids = set()
-            for notify in rss_combine.notifies:
-                self.log(f"🔔\tSending {len(rss_combine.msgs_buffer)} message(s) to {notify.name}...", no_emoji=True)
-                failed = notify.send(msgs=rss_combine.msgs_buffer, local_tz=self._config.timezone)
-                failed_ids.update(id(msg) for msg in failed)
-
-            rss_combine.msgs_buffer = [msg for msg in rss_combine.msgs_buffer if id(msg) in failed_ids]
-            if rss_combine.msgs_buffer:
-                self.log(f"{rss_name}: {len(rss_combine.msgs_buffer)} message(s) failed to send and will be retried.", level=LogLevel.WARNING)
+            failed = notify.send(msgs=list(msgs), local_tz=self._config.timezone)
+            self._send_cache.replace_msgs(notify_name=notify_name, msgs=failed, save=True)
+            if len(failed) > 0:
+                self.log(f"{len(failed)} message(s) failed to send to {notify_name} and will be retried.", level=LogLevel.WARNING)
             else:
-                self.fetch_time_utc[rss_name] = rss_combine.last
+                self.log(f"All messages sent to {notify_name} successfully.", level=LogLevel.SUCCESS)
 
     def check_config_and_load(self) -> None:
         """

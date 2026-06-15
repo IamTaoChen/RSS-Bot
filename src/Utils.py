@@ -9,6 +9,15 @@ from datetime import datetime, tzinfo
 import re
 from html import unescape
 from enum import Enum
+from typing import TypeVar
+
+T = TypeVar("T")
+
+
+def to_list(item: T | list[T]) -> list[T]:
+    if isinstance(item, list):
+        return item
+    return [item]
 
 
 class LogLevel(Enum):
@@ -149,6 +158,49 @@ class Msg:
     def __init_post__(self):
         if self.datetime is None:
             self.datetime = datetime.now()
+
+    def __hash__(self) -> int:
+        return hash((self.title, self.description, self.link, self.pub_date))
+
+    def dump(self) -> dict:
+        return {
+            "title": self.title,
+            "description": self.description,
+            "link": self.link,
+            "pub_date": self.pub_date.isoformat() if self.pub_date else None,
+            "images": self.images,
+            "authors": self.authors,
+            "contents": self.contents,
+            "msg_type": self.msg_type,
+            "_is_markdown": self._is_markdown
+        }
+
+    def load(self, data: dict) -> Msg:
+        title = data.get("title", None)
+        description = data.get("description", None)
+        if title is not None:
+            self.title = title
+        if description is not None:
+            self.description = description
+        self.link = data.get("link", None)
+        pub_date_str = data.get("pub_date", None)
+        self.pub_date = datetime.fromisoformat(pub_date_str) if pub_date_str else None
+        self.images = data.get("images", [])
+        self.authors = data.get("authors", [])
+        self.contents = data.get("contents", {})
+        self.msg_type = data.get("msg_type", "normal")
+        self._is_markdown = data.get("_is_markdown", False)
+        return self
+
+    @classmethod
+    def new(cls, **kwargs) -> Msg:
+        title = kwargs.pop("title", None)
+        description = kwargs.pop("description", None)
+        if not title or not description:
+            raise ValueError("Title and description are required to create a Msg")
+        msg = cls(title=title, description=description)
+        msg.load(kwargs)
+        return msg
 
     def format(self) -> str:
         return str(self)
