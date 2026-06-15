@@ -314,7 +314,6 @@ class App:
             if not notify:
                 self.log(f"Notify {notify_name} not found in config, skipping messages for it.", level=LogLevel.WARNING)
                 continue
-            self.log(f"Sending {len(msgs)} messages to {notify_name}", level=LogLevel.DEBUG)
             failed = notify.send(msgs=list(msgs), local_tz=self._config.timezone, debug=self.debug)
             if len(failed) != len(msgs):
                 self.send_cache.replace_msgs(notify=notify_name, msgs=failed, save=True)
