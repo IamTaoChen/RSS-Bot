@@ -299,6 +299,8 @@ class App:
             self.log("No messages to send, skipping...", no_emoji=True)
             return
         for notify_name, msgs in self.send_cache.caches.items():
+            if len(msgs) == 0:
+                continue
             self.log(f"📤\t{len(msgs)} message(s) waiting to be sent to {notify_name}...", no_emoji=True)
             notify = self._config.notifies.get(notify_name, None)
             if not notify:
