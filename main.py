@@ -311,6 +311,10 @@ class App:
                 self.log(f"{len(failed)} message(s) failed to send to {notify_name} and will be retried.", level=LogLevel.WARNING)
             elif len(msgs) > 0:
                 self.log(f"All messages sent to {notify_name} successfully.", level=LogLevel.SUCCESS)
+        if self.send_cache.empty:
+            self.log("All messages in cache have been sent successfully.", level=LogLevel.SUCCESS)
+        else:
+            self.log(f"{self.send_cache.total} message(s) still in cache after sending attempt.", level=LogLevel.WARNING)
 
     def check_config_and_load(self) -> None:
         """
