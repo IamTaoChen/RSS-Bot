@@ -77,7 +77,7 @@ class MatrixConfig(NotifyConfig):
             res = SESSION.put(url, headers=headers, json=payload)
             if debug:
                 print("status:", res.status_code, "response:", res.text)
-            return res.status_code == 200
+            return res.ok
         except Exception as e:
             print("request failed:", e)
             return False
