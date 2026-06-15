@@ -9,6 +9,7 @@ from abc import ABC, abstractmethod
 import requests
 import time
 import markdown
+import uuid
 
 SESSION = requests.Session()
 
@@ -70,7 +71,7 @@ class MatrixConfig(NotifyConfig):
             payload["format"] = "org.matrix.custom.html"
             payload["formatted_body"] = self.msg2str(msg, html=True, local_tz=local_tz)
 
-        txn_id = str(int(time.time() * 1000))
+        txn_id = str(uuid.uuid4())
         url = f"{self.homeserver}/_matrix/client/r0/rooms/{self.room_id}/send/m.room.message/{txn_id}"
         headers = {"Authorization": f"Bearer {self.token}"}
         try:
@@ -78,9 +79,13 @@ class MatrixConfig(NotifyConfig):
             if debug:
                 print("status:", res.status_code, "response:", res.text)
             return res.ok
-        except Exception as e:
+        except requests.exceptions.Timeout:
+            print("request timeout")
+        except requests.exceptions.ConnectionError as e:
+            print("connection failed:", e)
+        except requests.exceptions.RequestException as e:
             print("request failed:", e)
-            return False
+        return False
 
     def _render_content(self, content: str, html: bool = False, is_markdown: bool = False) -> str:
         """Render a single content block (text or markdown)."""
