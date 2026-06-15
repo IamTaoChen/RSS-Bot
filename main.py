@@ -45,9 +45,19 @@ class App:
         self.rss: dict[str, RssMain] = {}
         self.cache_dir: Path = Path(cache_dir)
         self.fetch_time_utc: dict[str, datetime] = {}
-        self._send_cache = SendCache(file_path=self.cache_dir / "send_cache.json")
+        self._send_cache = SendCache(file_path=self.send_cache_file)
         self.load_fetch_time()
+        self.send_cache.load_from_file()
+        self.log(f"Send cache loaded with {self.send_cache.total} message(s) for {len(self.send_cache.stats)} notify(s).")
         self._init_rss_()
+
+    @property
+    def send_cache(self) -> SendCache:
+        return self._send_cache
+
+    @property
+    def send_cache_file(self) -> Path:
+        return self.cache_dir / "send_cache.json"
 
     @property
     def cfg_file(self) -> str:
@@ -260,7 +270,7 @@ class App:
                             msgs.append(self.make_error_msg(rss_name, rss_combine.rss.config.url, e))
                     except Exception as e:
                         self.log(f"Unknown error while handling {rss_name}: {e}", level=LogLevel.ERROR)
-                    self._send_cache.append_msgs(notifies=notify_names, msgs=msgs)
+                    self.send_cache.append_msgs(notifies=notify_names, msgs=msgs)
                     self.log(msg=2, is_spliter=True)
                 self.log("Finished handling all RSS feeds, start sending messages in cache...", no_emoji=True)
                 self.send()
@@ -285,10 +295,10 @@ class App:
             self.log(f"Unknown error: {e}", level=LogLevel.ERROR)
 
     def send(self) -> None:
-        if self._send_cache.empty:
+        if self.send_cache.empty:
             self.log("No messages to send, skipping...", no_emoji=True)
             return
-        for notify_name, msgs in self._send_cache.caches.items():
+        for notify_name, msgs in self.send_cache.caches.items():
             self.log(f"📤\t{len(msgs)} message(s) waiting to be sent to {notify_name}...", no_emoji=True)
             notify = self._config.notifies.get(notify_name, None)
             if not notify:
@@ -296,7 +306,7 @@ class App:
                 continue
             self.log(f"Sending {len(msgs)} messages to {notify_name}", level=LogLevel.DEBUG)
             failed = notify.send(msgs=list(msgs), local_tz=self._config.timezone)
-            self._send_cache.replace_msgs(notify=notify_name, msgs=failed, save=True)
+            self.send_cache.replace_msgs(notify=notify_name, msgs=failed, save=True)
             if len(failed) > 0:
                 self.log(f"{len(failed)} message(s) failed to send to {notify_name} and will be retried.", level=LogLevel.WARNING)
             elif len(msgs) > 0:
