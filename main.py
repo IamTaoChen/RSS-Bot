@@ -311,7 +311,8 @@ class App:
                 continue
             self.log(f"Sending {len(msgs)} messages to {notify_name}", level=LogLevel.DEBUG)
             failed = notify.send(msgs=list(msgs), local_tz=self._config.timezone)
-            self.send_cache.replace_msgs(notify=notify_name, msgs=failed, save=True)
+            if len(failed) != len(msgs):
+                self.send_cache.replace_msgs(notify=notify_name, msgs=failed, save=True)
             if len(failed) > 0:
                 self.log(f"{len(failed)} message(s) failed to send to {notify_name} and will be retried.", level=LogLevel.WARNING)
             elif len(msgs) > 0:
