@@ -354,6 +354,7 @@ if __name__ == "__main__":
     parser.add_argument("-d", "--cache-dir", required=False, help="Path to cache dir", default="/tmp/rss_cache")
     parser.add_argument("-l", "--log-level", required=False, help="Log level", default=None)
     parser.add_argument("-i", "--interval", type=int, required=False, help="Polling interval in seconds", default=None)
+    parser.add_argument("send_cache", action="store_true", help="Send messages from cache file and exit")
     args = parser.parse_args()
 
     interval_env = os.getenv("RSS_INTERVAL")
@@ -366,8 +367,14 @@ if __name__ == "__main__":
 
     log_level_str = os.getenv("RSS_LOG_LEVEL") or args.log_level
     log_level = LogLevel.from_string(log_level_str) if log_level_str else None
+    
+    send_cache_only = args.send_cache
 
     cfg_file = args.config
     print(f"{LogLevel.INFO.emoji}  Using config file: {cfg_file}")
     app = App(cfg_file=cfg_file, cache_dir=cache_dir, log_level=log_level)
-    app.run(interval=interval_sec)
+    if send_cache_only:
+        print("🚀 Sending messages from cache and exiting...")
+        app.send()
+    else:
+        app.run(interval=interval_sec)
