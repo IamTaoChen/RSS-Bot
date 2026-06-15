@@ -73,7 +73,10 @@ class MatrixConfig(NotifyConfig):
 
         txn_id = str(uuid.uuid4())
         url = f"{self.homeserver}/_matrix/client/r0/rooms/{self.room_id}/send/m.room.message/{txn_id}"
-        headers = {"Authorization": f"Bearer {self.token}"}
+        headers = {"Authorization": f"Bearer {self.token}", 
+                   "User-Agent": "NametagBot/1.0 (Matrix client; +{self.homeserver})"
+                   }
+        
         try:
             res = SESSION.put(url, headers=headers, json=payload)
             if debug:
